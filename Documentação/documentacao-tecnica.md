@@ -233,6 +233,215 @@ producao         → pedidos
 financeiro       → pedidos (opcional)
 ```
 
+### 4.3 Script de Criação MySQL
+
+```sql
+-- ============================================================
+-- SCHEMA: lingerie / moda íntima
+-- ============================================================
+
+CREATE DATABASE IF NOT EXISTS moda_intima
+      CHARACTER SET utf8mb4 
+      COLLATE utf8mb4_unicode_ci;
+
+USE moda_intima;
+
+-- ------------------------------------------------------------
+-- USUARIOS
+-- ------------------------------------------------------------
+CREATE TABLE usuarios (
+      id          INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
+      nome        VARCHAR(100)    NOT NULL,
+      email       VARCHAR(150)    NOT NULL UNIQUE,
+      senha_hash  VARCHAR(255)    NOT NULL,
+      perfil      ENUM('admin','vendas','producao','financeiro') NOT NULL DEFAULT 'vendas',
+      ativo       TINYINT(1)      NOT NULL DEFAULT 1,
+      criado_em   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ------------------------------------------------------------
+-- CLIENTES
+-- ------------------------------------------------------------
+CREATE TABLE clientes (
+      id          INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
+      nome        VARCHAR(150)    NOT NULL,
+      cpf         VARCHAR(14)     UNIQUE,
+      email       VARCHAR(150),
+      telefone    VARCHAR(20),
+      endereco    TEXT,
+      criado_em   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ------------------------------------------------------------
+-- PRODUTOS
+-- ------------------------------------------------------------
+CREATE TABLE produtos (
+      id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
+      nome            VARCHAR(150)    NOT NULL,
+      categoria       ENUM('calcinha','sutia','body','camisola','conjunto','outro') NOT NULL,
+      cor             VARCHAR(50)     NOT NULL,
+      tamanho         VARCHAR(10)     NOT NULL,
+      preco_unitario  DECIMAL(10,2)   NOT NULL,
+      ativo           TINYINT(1)      NOT NULL DEFAULT 1,
+      criado_em       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ------------------------------------------------------------
+-- ESTOQUE  (movimentações, não saldo direto)
+-- ------------------------------------------------------------
+CREATE TABLE estoque (
+      id               INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
+      produto_id       INT UNSIGNED    NOT NULL,
+      tipo             ENUM('entrada','saida','ajuste') NOT NULL,
+      quantidade       INT             NOT NULL,
+      motivo           VARCHAR(255),
+      referencia_tipo  ENUM('pedido','producao','manual'),
+      referencia_id    INT UNSIGNED,
+      usuario_id       INT UNSIGNED,
+      criado_em        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (produto_id)  REFERENCES produtos(id),
+      FOREIGN KEY (usuario_id)  REFERENCES usuarios(id)
+);
+
+-- View auxiliar: saldo atual por produto
+CREATE VIEW vw_estoque_atual AS
+SELECT
+      p.id          AS produto_id,
+      p.nome,
+      p.categoria,
+      p.cor,
+      p.tamanho,
+      SUM(
+            CASE e.tipo
+                  WHEN 'entrada' THEN  e.quantidade
+                  WHEN 'saida'   THEN -e.quantidade
+                  WHEN 'ajuste'  THEN  e.quantidade
+            END
+      ) AS saldo
+FROM produtos p
+LEFT JOIN estoque e ON e.produto_id = p.id
+GROUP BY p.id, p.nome, p.categoria, p.cor, p.tamanho;
+
+-- ------------------------------------------------------------
+-- PEDIDOS
+-- ------------------------------------------------------------
+CREATE TABLE pedidos (
+      id            INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
+      cliente_id    INT UNSIGNED    NOT NULL,
+      usuario_id    INT UNSIGNED,
+      status        ENUM('aberto','producao','pronto','entregue','cancelado') NOT NULL DEFAULT 'aberto',
+      total         DECIMAL(10,2)   NOT NULL DEFAULT 0,
+      observacoes   TEXT,
+      criado_em     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      fechado_em    DATETIME,
+
+      FOREIGN KEY (cliente_id)  REFERENCES clientes(id),
+      FOREIGN KEY (usuario_id)  REFERENCES usuarios(id)
+);
+
+-- ------------------------------------------------------------
+-- ITENS_PEDIDO
+-- ------------------------------------------------------------
+CREATE TABLE itens_pedido (
+      id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
+      pedido_id       INT UNSIGNED    NOT NULL,
+      produto_id      INT UNSIGNED    NOT NULL,
+      quantidade      INT             NOT NULL,
+      preco_unitario  DECIMAL(10,2)   NOT NULL,
+      subtotal        DECIMAL(10,2)   GENERATED ALWAYS AS (quantidade * preco_unitario) STORED,
+
+      FOREIGN KEY (pedido_id)   REFERENCES pedidos(id),
+      FOREIGN KEY (produto_id)  REFERENCES produtos(id)
+);
+
+-- ------------------------------------------------------------
+-- PRODUCAO
+-- ------------------------------------------------------------
+CREATE TABLE producao (
+      id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
+      pedido_id       INT UNSIGNED    NOT NULL UNIQUE,
+      status          ENUM('pendente','em_producao','concluido','cancelado') NOT NULL DEFAULT 'pendente',
+      responsavel_id  INT UNSIGNED,
+      observacoes     TEXT,
+      iniciado_em     DATETIME,
+      concluido_em    DATETIME,
+      criado_em       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (pedido_id)       REFERENCES pedidos(id),
+      FOREIGN KEY (responsavel_id)  REFERENCES usuarios(id)
+);
+
+-- ------------------------------------------------------------
+-- FINANCEIRO
+-- ------------------------------------------------------------
+CREATE TABLE financeiro (
+      id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
+      pedido_id       INT UNSIGNED    NOT NULL UNIQUE,
+      tipo            ENUM('receita','despesa') NOT NULL DEFAULT 'receita',
+      valor           DECIMAL(10,2)   NOT NULL,
+      descricao       VARCHAR(255),
+      registrado_em   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      FOREIGN KEY (pedido_id) REFERENCES pedidos(id)
+);
+
+-- ============================================================
+-- TRIGGERS
+-- ============================================================
+
+DELIMITER $$
+
+-- 1. Seta fechado_em quando pedido vira 'entregue'
+CREATE TRIGGER trg_pedido_fechar
+BEFORE UPDATE ON pedidos
+FOR EACH ROW
+BEGIN
+      IF NEW.status = 'entregue' AND OLD.status != 'entregue' THEN
+            SET NEW.fechado_em = NOW();
+      END IF;
+END$$
+
+-- 2. Registra receita no financeiro automaticamente
+CREATE TRIGGER trg_pedido_receita
+AFTER UPDATE ON pedidos
+FOR EACH ROW
+BEGIN
+      IF NEW.status = 'entregue' AND OLD.status != 'entregue' THEN
+            INSERT INTO financeiro (pedido_id, tipo, valor, descricao)
+            VALUES (
+                  NEW.id,
+                  'receita',
+                  NEW.total,
+                  CONCAT('Receita automática — Pedido #', NEW.id)
+            );
+      END IF;
+END$$
+
+-- 3. Baixa estoque quando item é adicionado a um pedido
+CREATE TRIGGER trg_item_saida_estoque
+AFTER INSERT ON itens_pedido
+FOR EACH ROW
+BEGIN
+      INSERT INTO estoque (produto_id, tipo, quantidade, motivo, referencia_tipo, referencia_id)
+      VALUES (NEW.produto_id, 'saida', NEW.quantidade, 'Saída por pedido', 'pedido', NEW.pedido_id);
+END$$
+
+DELIMITER ;
+```
+
+Pontos de atenção do script:
+
+**`estoque` como ledger** — o saldo real fica na view `vw_estoque_atual`, garantindo rastreabilidade das movimentações.
+
+**`itens_pedido.preco_unitario`** — o valor é um snapshot do momento da venda para preservar o histórico.
+
+**`financeiro` dispara só em `'entregue'`** — se o gatilho de receita precisar acontecer em outro status, basta ajustar os dois triggers relacionados.
+
+**`producao` com `UNIQUE` em `pedido_id`** — o modelo força relação 1:1 entre pedido e ordem de produção.
+
+**FK polimórfica em `estoque`** — `referencia_tipo` + `referencia_id` não recebem FK formal porque o MySQL não suporta esse padrão nativamente.
+
 ---
 
 ## 5. Endpoints da API
