@@ -2,8 +2,14 @@ import 'dotenv/config'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
+import db from './db/connection.js'
  
 const app = Fastify({ logger: true })
+
+app.decorate('db', db)
+app.addHook('onClose', async () => {
+  await db.end()
+})
 
 await app.register(cors, {
   origin: true,
