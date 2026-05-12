@@ -417,7 +417,7 @@ BEGIN
             );
       END IF;
 END$$
-
+ 
 -- 3. Baixa estoque quando item é adicionado a um pedido
 CREATE TRIGGER trg_item_saida_estoque
 AFTER INSERT ON itens_pedido
