@@ -1,13 +1,37 @@
 import { register, login, logout, me } from '../controllers/authController.js'
 
 export async function authRoutes(app) {
+  const registerSchema = {
+    body: {
+      type: 'object',
+      required: ['email', 'name', 'password', 'passwordConfirm'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        name: { type: 'string' },
+        password: { type: 'string', minLength: 6 },
+        passwordConfirm: { type: 'string' },
+      },
+    },
+  }
+
+  const loginSchema = {
+    body: {
+      type: 'object',
+      required: ['email', 'password'],
+      properties: {
+        email: { type: 'string', format: 'email' },
+        password: { type: 'string' },
+      },
+    },
+  }
+
   // Rota pública de registro
-  app.post('/auth/register', async (req, reply) => {
+  app.post('/auth/register', { schema: registerSchema }, async (req, reply) => {
     return register(req, reply)
   })
 
   // Rota pública de login
-  app.post('/auth/login', async (req, reply) => {
+  app.post('/auth/login', { schema: loginSchema }, async (req, reply) => {
     return login(req, reply)
   })
 

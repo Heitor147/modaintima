@@ -4,8 +4,26 @@ import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import db from './db/connection.js'
 import { authRoutes } from './routes/auth.js'
+import crypto from 'crypto'
  
 const app = Fastify({ logger: true })
+
+// Correlation id simples + expor no header
+app.addHook('onRequest', async (req, reply) => {
+  try {
+    const existing = req.headers['x-correlation-id']
+    const cid = existing || (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'))
+    req.correlationId = cid
+    reply.header('X-Correlation-ID', cid)
+    try {
+      req.log = req.log.child({ correlationId: cid })
+    } catch (e) {
+      // ignore if log child not supported
+    }
+  } catch (e) {
+    // noop
+  }
+})
 
 app.decorate('db', db)
 app.addHook('onClose', async () => {
@@ -47,6 +65,16 @@ await app.register(authRoutes)
 const PORT = process.env.PORT || 3333
  
 try {
+  // Error handler padronizado: { error, message, details }
+  app.setErrorHandler((error, req, reply) => {
+    const payload = {
+      error: error.name || 'Error',
+      message: error.message || 'Erro interno',
+      details: error.validation || null,
+    }
+    reply.code(error.statusCode || 500).send(payload)
+  })
+
   const address = await app.listen({ port: PORT, host: '0.0.0.0' })
   app.log.info(`Servidor rodando em ${address}`)
 } catch (err) {

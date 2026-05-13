@@ -47,7 +47,7 @@ Essa integração já está funcional e validada via script de teste `test-conne
 ### Backend
 
 ```
-backend/
+Backend/
 ├── src/
 │   ├── controllers/       # Recebe req/res, valida input, chama service
 │   │   ├── auth.controller.js
@@ -95,7 +95,7 @@ backend/
 ### Frontend
 
 ```
-frontend/
+Frontend/
 ├── src/
 │   ├── pages/             # Uma pasta por módulo
 │   │   ├── Estoque/
@@ -158,7 +158,9 @@ Implementado e funcional:
 
 Pendente de validação neste repositório:
 
-- Versionamento/migrações de schema dentro do projeto (o script está documentado, mas não há arquivo SQL versionado em `Backend/src`).
+-- Versionamento/migrações de schema dentro do projeto (o script está documentado, existe agora um SQL mínimo em `Backend/sql/create_schema_and_seed.sql`).
+
+Rotina de deploy/migração: sempre que subir uma nova versão que altere schema, adicione um script versionado em `Backend/sql/` e documente no changelog. Exemplo: "Ao subir versão X, rode: `mysql -u user -p database < Backend/sql/2026-05-13-add-pedidos.sql`".
 
 ---
 
