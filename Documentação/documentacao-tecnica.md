@@ -1,5 +1,7 @@
 # Documentação Técnica — Sistema de Gestão de Moda Íntima
 
+> Status do documento: contém a arquitetura alvo do sistema e, também, o status real de implementação do repositório (snapshot de maio/2026).
+
 ## 1. Stack Tecnológica
 
 | Camada        | Tecnologia              |
@@ -29,6 +31,14 @@ MySQL (banco de dados)
 ```
 
 O frontend é uma SPA desacoplada do backend. Toda comunicação é feita via API REST com JSON. O token JWT é armazenado no frontend (localStorage ou memória) e enviado no header `Authorization: Bearer <token>` em cada requisição.
+
+---
+
+## 2.1 Comunicação Backend ↔ Banco de Dados
+
+A comunicação entre o backend e o MySQL é feita por meio do `mysql2`, utilizando pool de conexões configurado em `db/connection.js`. Esse pool é usado pelos repositórios para executar queries SQL e retornar os dados para a camada de serviços/controladores.
+
+Essa integração já está funcional e validada via script de teste `test-connection.js`, que confirma a conexão do backend com o banco de dados.
 
 ---
 
@@ -104,6 +114,51 @@ frontend/
 │
 └── package.json
 ```
+
+### 3.1 Status Real de Implementação (maio/2026)
+
+#### Backend
+
+Implementado e funcional:
+
+- `src/server.js` com Fastify em execução, CORS e plugin JWT registrados.
+- Pool de conexão MySQL via `src/db/connection.js`.
+- Teste de conexão via `src/db/test-connection.js` (valida comunicação com banco).
+- Endpoint de verificação: `GET /health/db`.
+
+Implementado parcialmente:
+
+- Autenticação JWT apenas na infraestrutura (`app.register(jwt)` + `app.decorate('authenticate')`), sem fluxo completo de login.
+
+Ainda não implementado no backend:
+
+- Camadas de negócio por módulo (`controllers/`, `services/`, `repository/`, `routes/`) ainda sem arquivos implementados.
+- Endpoints de Auth, Produtos, Estoque, Clientes, Pedidos, Produção, Financeiro e Relatórios descritos na seção 5.
+- Regras de negócio (validações, casos de uso, persistência por módulo).
+
+#### Frontend
+
+Implementado:
+
+- Apenas `package.json` base com `react` e `react-dom`.
+
+Ainda não implementado no frontend:
+
+- Estrutura `src/` (pages, components, hooks, context, routes).
+- Configuração Vite e scripts de execução/build do frontend.
+- Camada de serviços Axios e integração com backend.
+- Telas dos módulos de negócio.
+
+#### Banco de Dados
+
+Implementado e funcional:
+
+- Configuração de conexão com MySQL via variáveis de ambiente.
+- Conectividade validada por script de teste `test-connection.js`.
+
+Pendente de validação neste repositório:
+
+- Versionamento/migrações de schema dentro do projeto (o script está documentado, mas não há arquivo SQL versionado em `Backend/src`).
 
 ---
 
@@ -445,6 +500,8 @@ Pontos de atenção do script:
 ---
 
 ## 5. Endpoints da API
+
+> **Importante:** a lista abaixo representa os endpoints planejados/alvo do sistema. No estado atual do código, o único endpoint implementado e funcional é `GET /health/db`.
 
 Todas as rotas (exceto `/auth/login`) exigem header:
 ```
