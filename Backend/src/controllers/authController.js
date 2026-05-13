@@ -1,48 +1,31 @@
-/**
- * Auth Controller
- * Responsável por:
- * 1. Validar entrada (formato, tipos)
- * 2. Chamar o service com os dados validados
- * 3. Retornar resposta HTTP apropriada
- * 
- * NÃO faz:
- * - Queries SQL diretas (usa service/repository)
- * - Lógica de negócio (usa service)
- */
-
 import * as authService from '../services/authService.js'
+
+const invalidCredentialsMessage = 'Credenciais inválidas'
+
+const signUserToken = (reply, user) => {
+  return reply.jwtSign(
+    {
+      sub: user.id,
+      email: user.email,
+      perfil: user.perfil || 'usuario',
+    },
+    { expiresIn: '24h' }
+  )
+}
 
 export const register = async (req, reply) => {
   try {
     const { email, name, password, passwordConfirm } = req.body
 
-    // Validação de entrada
-    if (!email || !name || !password || !passwordConfirm) {
-      return reply.code(400).send({
-        error: 'Email, nome, senha e confirmação de senha são obrigatórios',
-      })
-    }
-
     if (password !== passwordConfirm) {
       return reply.code(400).send({
-        error: 'As senhas não conferem',
+        error: 'Bad Request',
+        message: 'As senhas não conferem',
       })
     }
 
-    if (typeof email !== 'string' || typeof name !== 'string') {
-      return reply.code(400).send({
-        error: 'Email e nome devem ser textos',
-      })
-    }
-
-    // Chamar service (lógica de negócio)
-    const user = await authService.register(req.server.db, email, name, password)
-
-    // Gerar token JWT
-    const token = await reply.jwtSign(
-      { userId: user.id, email: user.email },
-      { expiresIn: '24h' }
-    )
+    const user = await authService.register(email, name, password)
+    const token = await signUserToken(reply, user)
 
     return reply.code(201).send({
       message: 'Usuário registrado com sucesso',
@@ -51,6 +34,7 @@ export const register = async (req, reply) => {
         id: user.id,
         email: user.email,
         name: user.nome,
+        perfil: user.perfil,
       },
     })
   } catch (err) {
@@ -58,19 +42,21 @@ export const register = async (req, reply) => {
 
     if (err.message.includes('Email já cadastrado')) {
       return reply.code(409).send({
-        error: err.message,
+        error: 'Conflict',
+        message: err.message,
       })
     }
 
     if (err.message.includes('Senha deve ter')) {
       return reply.code(400).send({
-        error: err.message,
+        error: 'Bad Request',
+        message: err.message,
       })
     }
 
     return reply.code(500).send({
-      error: 'Erro ao registrar usuário',
-      message: err.message,
+      error: 'Internal Server Error',
+      message: 'Erro interno',
     })
   }
 }
@@ -79,27 +65,8 @@ export const login = async (req, reply) => {
   try {
     const { email, password } = req.body
 
-    // Validação de entrada
-    if (!email || !password) {
-      return reply.code(400).send({
-        error: 'Email e senha são obrigatórios',
-      })
-    }
-
-    if (typeof email !== 'string' || typeof password !== 'string') {
-      return reply.code(400).send({
-        error: 'Email e senha devem ser textos',
-      })
-    }
-
-    // Chamar service (lógica de negócio)
-    const user = await authService.login(req.server.db, email, password)
-
-    // Gerar token JWT
-    const token = await reply.jwtSign(
-      { userId: user.id, email: user.email },
-      { expiresIn: '24h' }
-    )
+    const user = await authService.login(email, password)
+    const token = await signUserToken(reply, user)
 
     return reply.code(200).send({
       message: 'Login realizado com sucesso',
@@ -108,52 +75,56 @@ export const login = async (req, reply) => {
         id: user.id,
         email: user.email,
         name: user.nome,
+        perfil: user.perfil,
       },
     })
   } catch (err) {
     req.log.error(err)
 
-    if (err.message.includes('Credenciais inválidas')) {
+    if (err.message.includes(invalidCredentialsMessage)) {
       return reply.code(401).send({
-        error: err.message,
+        error: 'Unauthorized',
+        message: invalidCredentialsMessage,
       })
     }
 
     return reply.code(500).send({
-      error: 'Erro ao realizar login',
-      message: err.message,
+      error: 'Internal Server Error',
+      message: 'Erro interno',
     })
   }
 }
 
 export const logout = async (req, reply) => {
   try {
-    // Chamar service (para lógica futura de blacklist)
-    const result = await authService.logout(req.user.userId)
+    const result = await authService.logout(req.user.sub)
 
     return reply.code(200).send(result)
   } catch (err) {
     req.log.error(err)
     return reply.code(500).send({
-      error: 'Erro ao realizar logout',
-      message: err.message,
+      error: 'Internal Server Error',
+      message: 'Erro interno',
     })
   }
 }
 
 export const me = async (req, reply) => {
   try {
-    // Buscar dados completos do usuário
-    const user = await authService.getUserById(req.server.db, req.user.userId)
+    const currentUser = await authService.getUserById(req.user.sub)
 
     return reply.code(200).send({
-      user,
+      user: {
+        sub: req.user.sub,
+        email: currentUser.email || req.user.email,
+        perfil: currentUser.perfil || req.user.perfil || 'usuario',
+      },
     })
   } catch (err) {
     req.log.error(err)
     return reply.code(500).send({
-      error: 'Erro ao buscar dados do usuário',
-      message: err.message,
+      error: 'Internal Server Error',
+      message: 'Erro interno',
     })
   }
 }
