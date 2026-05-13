@@ -1,5 +1,7 @@
 import db from '../db/connection.js'
 
+const BAD_FIELD_ERROR = 'ER_BAD_FIELD_ERROR'
+
 function normalizeUser(row) {
   if (!row) return null
 
@@ -14,29 +16,56 @@ function normalizeUser(row) {
 }
 
 export const findByEmail = async (email) => {
-  const [rows] = await db.query(
-    'SELECT id, email, senha_hash, nome FROM usuarios WHERE email = ? LIMIT 1',
-    [email]
-  )
+  try {
+    const [rows] = await db.query(
+      'SELECT id, email, senha_hash, nome, perfil, ativo FROM usuarios WHERE email = ? LIMIT 1',
+      [email]
+    )
 
-  return normalizeUser(rows?.[0] || null)
+    return normalizeUser(rows?.[0] || null)
+  } catch (err) {
+    if (err?.code !== BAD_FIELD_ERROR) throw err
+
+    const [rows] = await db.query(
+      'SELECT id, email, senha_hash, nome FROM usuarios WHERE email = ? LIMIT 1',
+      [email]
+    )
+
+    return normalizeUser(rows?.[0] || null)
+  }
 }
 
 export const findById = async (userId) => {
-  const [rows] = await db.query(
-    'SELECT id, email, nome FROM usuarios WHERE id = ? LIMIT 1',
-    [userId]
-  )
+  try {
+    const [rows] = await db.query(
+      'SELECT id, email, nome, perfil, ativo FROM usuarios WHERE id = ? LIMIT 1',
+      [userId]
+    )
 
-  const user = rows?.[0] || null
-  if (!user) return null
+    const user = rows?.[0] || null
+    if (!user) return null
 
-  return {
-    id: user.id,
-    email: user.email,
-    nome: user.nome,
-    perfil: 'usuario',
-    ativo: 1,
+    return {
+      id: user.id,
+      email: user.email,
+      nome: user.nome,
+      perfil: user.perfil || 'usuario',
+      ativo: typeof user.ativo === 'undefined' ? 1 : user.ativo,
+    }
+  } catch (err) {
+    if (err?.code !== BAD_FIELD_ERROR) throw err
+
+    const [rows] = await db.query('SELECT id, email, nome FROM usuarios WHERE id = ? LIMIT 1', [userId])
+    const user = rows?.[0] || null
+    if (!user) return null
+
+    return {
+      id: user.id,
+      email: user.email,
+      nome: user.nome,
+      perfil: 'usuario',
+      ativo: 1,
+    }
   }
 }
 

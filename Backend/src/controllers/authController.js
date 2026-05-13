@@ -33,7 +33,7 @@ export const register = async (req, reply) => {
       user: {
         id: user.id,
         email: user.email,
-        nome: user.nome,
+        name: user.nome,
         perfil: user.perfil,
       },
     })
@@ -74,7 +74,7 @@ export const login = async (req, reply) => {
       user: {
         id: user.id,
         email: user.email,
-        nome: user.nome,
+        name: user.nome,
         perfil: user.perfil,
       },
     })
@@ -110,13 +110,21 @@ export const logout = async (req, reply) => {
 }
 
 export const me = async (req, reply) => {
-  const { sub, email, perfil } = req.user
+  try {
+    const currentUser = await authService.getUserById(req.user.sub)
 
-  return reply.code(200).send({
-    user: {
-      sub,
-      email,
-      perfil,
-    },
-  })
+    return reply.code(200).send({
+      user: {
+        sub: req.user.sub,
+        email: currentUser.email || req.user.email,
+        perfil: currentUser.perfil || req.user.perfil || 'usuario',
+      },
+    })
+  } catch (err) {
+    req.log.error(err)
+    return reply.code(500).send({
+      error: 'Internal Server Error',
+      message: 'Erro interno',
+    })
+  }
 }
