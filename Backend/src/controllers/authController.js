@@ -1,3 +1,5 @@
+import bcrypt from 'bcryptjs'
+
 export const login = async (req, reply) => {
   try {
     const { email, password } = req.body
@@ -9,21 +11,39 @@ export const login = async (req, reply) => {
       })
     }
 
-    // TODO: Implementar verificação de credenciais no banco de dados
-    // TODO: Implementar hash/verificação de senha
-    // TODO: Implementar geração de token JWT
+    // Buscar usuário no banco pelo email (tabela local: usuarios)
+    const [rows] = await req.server.db.query(
+      'SELECT id, email, senha_hash AS password, nome FROM usuarios WHERE email = ? LIMIT 1',
+      [email]
+    )
 
-    // Placeholder para demonstração
-    const token = app.jwt.sign(
-      { email },
+    if (!rows || rows.length === 0) {
+      return reply.code(401).send({ error: 'Credenciais inválidas' })
+    }
+
+    const user = rows[0]
+
+    // Comparar senha informada com hash armazenado
+    const passwordMatches = await bcrypt.compare(password, user.password)
+
+    if (!passwordMatches) {
+      return reply.code(401).send({ error: 'Credenciais inválidas' })
+    }
+
+    // Gerar token JWT (usa o decorator do fastify)
+    const token = await reply.jwtSign(
+      { userId: user.id, email: user.email },
       { expiresIn: '24h' }
     )
 
+    // Retornar dados do usuário sem a senha
     return reply.code(200).send({
       message: 'Login realizado com sucesso',
       token,
       user: {
-        email,
+        id: user.id,
+        email: user.email,
+        name: user.nome,
       },
     })
   } catch (err) {
