@@ -1,42 +1,106 @@
-import bcrypt from 'bcryptjs'
+/**
+ * Auth Controller
+ * Responsável por:
+ * 1. Validar entrada (formato, tipos)
+ * 2. Chamar o service com os dados validados
+ * 3. Retornar resposta HTTP apropriada
+ * 
+ * NÃO faz:
+ * - Queries SQL diretas (usa service/repository)
+ * - Lógica de negócio (usa service)
+ */
+
+import * as authService from '../services/authService.js'
+
+export const register = async (req, reply) => {
+  try {
+    const { email, name, password, passwordConfirm } = req.body
+
+    // Validação de entrada
+    if (!email || !name || !password || !passwordConfirm) {
+      return reply.code(400).send({
+        error: 'Email, nome, senha e confirmação de senha são obrigatórios',
+      })
+    }
+
+    if (password !== passwordConfirm) {
+      return reply.code(400).send({
+        error: 'As senhas não conferem',
+      })
+    }
+
+    if (typeof email !== 'string' || typeof name !== 'string') {
+      return reply.code(400).send({
+        error: 'Email e nome devem ser textos',
+      })
+    }
+
+    // Chamar service (lógica de negócio)
+    const user = await authService.register(req.server.db, email, name, password)
+
+    // Gerar token JWT
+    const token = await reply.jwtSign(
+      { userId: user.id, email: user.email },
+      { expiresIn: '24h' }
+    )
+
+    return reply.code(201).send({
+      message: 'Usuário registrado com sucesso',
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.nome,
+      },
+    })
+  } catch (err) {
+    req.log.error(err)
+
+    if (err.message.includes('Email já cadastrado')) {
+      return reply.code(409).send({
+        error: err.message,
+      })
+    }
+
+    if (err.message.includes('Senha deve ter')) {
+      return reply.code(400).send({
+        error: err.message,
+      })
+    }
+
+    return reply.code(500).send({
+      error: 'Erro ao registrar usuário',
+      message: err.message,
+    })
+  }
+}
 
 export const login = async (req, reply) => {
   try {
     const { email, password } = req.body
 
-    // Validação básica
+    // Validação de entrada
     if (!email || !password) {
       return reply.code(400).send({
         error: 'Email e senha são obrigatórios',
       })
     }
 
-    // Buscar usuário no banco pelo email (tabela local: usuarios)
-    const [rows] = await req.server.db.query(
-      'SELECT id, email, senha_hash AS password, nome FROM usuarios WHERE email = ? LIMIT 1',
-      [email]
-    )
-
-    if (!rows || rows.length === 0) {
-      return reply.code(401).send({ error: 'Credenciais inválidas' })
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return reply.code(400).send({
+        error: 'Email e senha devem ser textos',
+      })
     }
 
-    const user = rows[0]
+    // Chamar service (lógica de negócio)
+    const user = await authService.login(req.server.db, email, password)
 
-    // Comparar senha informada com hash armazenado
-    const passwordMatches = await bcrypt.compare(password, user.password)
-
-    if (!passwordMatches) {
-      return reply.code(401).send({ error: 'Credenciais inválidas' })
-    }
-
-    // Gerar token JWT (usa o decorator do fastify)
+    // Gerar token JWT
     const token = await reply.jwtSign(
       { userId: user.id, email: user.email },
       { expiresIn: '24h' }
     )
 
-    // Retornar dados do usuário sem a senha
     return reply.code(200).send({
       message: 'Login realizado com sucesso',
       token,
@@ -48,6 +112,13 @@ export const login = async (req, reply) => {
     })
   } catch (err) {
     req.log.error(err)
+
+    if (err.message.includes('Credenciais inválidas')) {
+      return reply.code(401).send({
+        error: err.message,
+      })
+    }
+
     return reply.code(500).send({
       error: 'Erro ao realizar login',
       message: err.message,
@@ -57,10 +128,10 @@ export const login = async (req, reply) => {
 
 export const logout = async (req, reply) => {
   try {
-    // TODO: Implementar logout (invalidar token se necessário)
-    return reply.code(200).send({
-      message: 'Logout realizado com sucesso',
-    })
+    // Chamar service (para lógica futura de blacklist)
+    const result = await authService.logout(req.user.userId)
+
+    return reply.code(200).send(result)
   } catch (err) {
     req.log.error(err)
     return reply.code(500).send({
@@ -72,8 +143,8 @@ export const logout = async (req, reply) => {
 
 export const me = async (req, reply) => {
   try {
-    // Verifica se o usuário está autenticado (protegido pela rota)
-    const user = req.user
+    // Buscar dados completos do usuário
+    const user = await authService.getUserById(req.server.db, req.user.userId)
 
     return reply.code(200).send({
       user,

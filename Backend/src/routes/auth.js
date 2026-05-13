@@ -1,6 +1,11 @@
-import { login, logout, me } from '../controllers/authController.js'
+import { register, login, logout, me } from '../controllers/authController.js'
 
 export async function authRoutes(app) {
+  // Rota pública de registro
+  app.post('/auth/register', async (req, reply) => {
+    return register(req, reply)
+  })
+
   // Rota pública de login
   app.post('/auth/login', async (req, reply) => {
     return login(req, reply)
