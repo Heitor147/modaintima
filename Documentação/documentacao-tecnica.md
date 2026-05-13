@@ -1,602 +1,530 @@
 # Documentação Técnica — Sistema de Gestão de Moda Íntima
 
-> Status do documento: contém a arquitetura alvo do sistema e, também, o status real de implementação do repositório (snapshot de maio/2026).
+> **Status:** Snapshot de maio/2026  
+> **Versão:** 1.0  
+> **Última atualização:** 2026-05-13
+>
+> **Progresso geral:** ✅ Autenticação implementada | ⏳ Módulos operacionais em planejamento
+
+---
 
 ## 1. Stack Tecnológica
 
-| Camada        | Tecnologia              |
-|---------------|-------------------------|
-| Frontend      | React + Vite            |
-| Backend       | Node.js + Fastify       |
-| Comunicação   | Axios                   |
-| Banco de dados| MySQL                   |
-| ORM / Query   | mysql2 (queries brutas) |
-| Autenticação  | JWT (jsonwebtoken)      |
-| Hash de senha | bcrypt                  |
+| Camada        | Tecnologia              | Status            |
+|---------------|-------------------------|-------------------|
+| Frontend      | React + Vite            | Setup básico       |
+| Backend       | Node.js + Fastify       | ✅ Produção       |
+| Comunicação   | Axios                   | ⏳ Próxima fase    |
+| Banco de dados| MySQL                   | ✅ Conectado      |
+| ORM / Query   | mysql2 (queries brutas) | ✅ Em uso          |
+| Autenticação  | JWT (jsonwebtoken)      | ✅ Implementada   |
+| Hash de senha | bcryptjs                | ✅ Em uso (salt 10)|
 
 ---
 
 ## 2. Arquitetura
 
+### 2.1 Visão Geral
+
 ```
-Cliente (React)
+Cliente (React SPA)
       │
       │ HTTP/JSON via Axios
       ▼
 Fastify (API REST)
+      │
+      ├─ Routes (wiring)
+      ├─ Controllers (HTTP + validation)
+      ├─ Services (business logic)
+      └─ Repositories (SQL only)
       │
       │ mysql2 pool
       ▼
 MySQL (banco de dados)
 ```
 
-O frontend é uma SPA desacoplada do backend. Toda comunicação é feita via API REST com JSON. O token JWT é armazenado no frontend (localStorage ou memória) e enviado no header `Authorization: Bearer <token>` em cada requisição.
+### 2.2 Padrão Arquitetural (MVC + Repository)
+
+Fluxo de cada requisição:
+
+```
+Request HTTP
+    ↓
+Routes/ (apenas wiring, sem lógica)
+    ↓
+Controllers/ (validação de payload JSON, chamada para service, formatação de resposta)
+    ↓
+Services/ (regras de negócio, transações, validações)
+    ↓
+Repositories/ (SQL puro, sem lógica)
+    ↓
+MySQL
+```
+
+**Regra crítica:** Controllers **nunca** acessam SQL diretamente. Todo acesso ao banco passa por: `Service → Repository`
+
+### 2.3 Comunicação Backend ↔ Banco de Dados
+
+- **Driver:** `mysql2` com pool de conexões
+- **Configuração:** `Backend/src/db/connection.js`
+- **Status:** ✅ Validado via `Backend/src/db/test-connection.js`
 
 ---
 
-## 2.1 Comunicação Backend ↔ Banco de Dados
+## 3. Estado Atual da Implementação (maio/2026)
 
-A comunicação entre o backend e o MySQL é feita por meio do `mysql2`, utilizando pool de conexões configurado em `db/connection.js`. Esse pool é usado pelos repositórios para executar queries SQL e retornar os dados para a camada de serviços/controladores.
+### 3.1 ✅ Implementado: Módulo de Autenticação
 
-Essa integração já está funcional e validada via script de teste `test-connection.js`, que confirma a conexão do backend com o banco de dados.
+**Endpoints:**
+```
+POST   /auth/register       (público)  - Registro de novo usuário
+POST   /auth/login          (público)  - Login com email + senha
+POST   /auth/logout         (protegido)- Logout
+GET    /auth/me             (protegido)- Dados do usuário autenticado
+```
+
+**Estrutura:**
+```
+Backend/src/
+├── controllers/authController.js       (validação, chamadas à service)
+├── services/authService.js             (lógica de negócio)
+├── services/authHelper.js              (funções auxiliares)
+├── repositories/usuariosRepository.js  (SQL puro)
+└── routes/auth.js                      (wiring de rotas)
+```
+
+**Fluxo de exemplo (register):**
+1. `POST /auth/register` → `authController.register()` (valida JSON)
+2. → `authService.register()` (hash de senha, cheque de email duplicado)
+3. → `usuariosRepository.create()` (insere no banco)
+4. → JWT gerado com expiração 24h
+5. → Retorna token + dados do usuário
+
+**Detalhes técnicos:**
+- Senha: hash bcryptjs com salt factor 10
+- JWT: expiração 24h, claims: `sub` (user ID), `email`, `perfil`
+- Proteção de rotas: middleware Fastify JWT
+- Validação: JSON Schema no Fastify
+
+### 3.2 ⏳ Planejado: Módulos Operacionais
+
+Os seguintes módulos **ainda não foram implementados**:
+
+#### Estoque
+- RF01: Cadastro de produtos (nome, categoria, cor, tamanho, preço custo/venda)
+- RF02: Registro de entradas/saídas
+- RF03: Consulta de saldo atual
+- RF04: Alerta de estoque mínimo
+- RF05: Inativação de produtos
+
+#### Pedidos / Vendas
+- RF06: Criação de pedidos vinculados a cliente
+- RF07: Múltiplos itens por pedido (produto + quantidade)
+- RF08: Ciclo de status (Aguardando → Em produção → Pronto → Entregue / Cancelado)
+- RF09: Forma e status de pagamento
+- RF10: Cancelamento com registro de motivo
+
+#### Clientes (CRM)
+- RF11: Cadastro (nome, telefone, email, endereço)
+- RF12: Histórico de pedidos por cliente
+- RF13: Observações sobre cliente
+- RF14: Inativação de cliente
+
+#### Produção / Costura
+- RF15: Criar ordens de produção vinculadas a pedidos
+- RF16: Atribuir responsável e prazo
+- RF17: Acompanhar status (Pendente → Em andamento → Concluída)
+- RF18: Registro de data de conclusão real
+
+#### Financeiro
+- RF19: Receitas (automáticas ao fechar pedido) + despesas manuais
+- RF20: Categorização de despesas
+- RF21: Saldo do período (receitas − despesas)
+- RF22: Status de pagamento (Pendente / Pago / Atrasado)
+
+#### Relatórios
+- RF23: Vendas por período
+- RF24: Produtos mais vendidos
+- RF25: Clientes com maior volume
+- RF26: Fluxo de caixa
+- RF27: Produção por status/responsável
 
 ---
 
-## 3. Estrutura de Pastas
+## 4. Estrutura de Pastas
 
-### Backend
+### 4.1 Backend (Real + Alvo)
 
 ```
 Backend/
-├── src/
-│   ├── controllers/       # Recebe req/res, valida input, chama service
-│   │   ├── auth.controller.js
-│   │   ├── produtos.controller.js
-│   │   ├── estoque.controller.js
-│   │   ├── clientes.controller.js
-│   │   ├── pedidos.controller.js
-│   │   ├── producao.controller.js
-│   │   └── financeiro.controller.js
-│   │
-│   ├── services/          # Regras de negócio
-│   │   ├── produtos.service.js
-│   │   ├── estoque.service.js
-│   │   ├── clientes.service.js
-│   │   ├── pedidos.service.js
-│   │   ├── producao.service.js
-│   │   └── financeiro.service.js
-│   │
-│   ├── repository/        # Único ponto de acesso ao banco
-│   │   ├── produtos.repository.js
-│   │   ├── estoque.repository.js
-│   │   ├── clientes.repository.js
-│   │   ├── pedidos.repository.js
-│   │   ├── producao.repository.js
-│   │   └── financeiro.repository.js
-│   │
-│   ├── routes/            # Registro de rotas por módulo
-│   │   ├── auth.routes.js
-│   │   ├── produtos.routes.js
-│   │   ├── estoque.routes.js
-│   │   ├── clientes.routes.js
-│   │   ├── pedidos.routes.js
-│   │   ├── producao.routes.js
-│   │   └── financeiro.routes.js
-│   │
-│   ├── db/
-│   │   └── connection.js  # Pool de conexão mysql2
-│   │
-│   └── server.js          # Instância Fastify, plugins, registro de rotas
+├── sql/
+│   └── create_schema_and_seed.sql      # ✅ Schema do banco e dados iniciais
 │
-├── .env
-└── package.json
+├── src/
+│   ├── server.js                       # ✅ Fastify setup, plugins, erro handler
+│   ├── package.json                    # ✅ Dependências
+│   ├── .env                            # ✅ Variáveis de ambiente
+│   ├── .env.example                    # ✅ Exemplo de env
+│   │
+│   ├── config/
+│   │   └── env.js                      # ✅ Validação de variáveis de ambiente
+│   │
+│   ├── controllers/                    # HTTP + validação de input
+│   │   ├── authController.js           # ✅ Autenticação
+│   │   ├── produtosController.js       # ⏳ A implementar
+│   │   ├── estoqueController.js        # ⏳ A implementar
+│   │   ├── clientesController.js       # ⏳ A implementar
+│   │   ├── pedidosController.js        # ⏳ A implementar
+│   │   ├── producaoController.js       # ⏳ A implementar
+│   │   └── financeiroController.js     # ⏳ A implementar
+│   │
+│   ├── services/                       # Business logic + validações
+│   │   ├── authService.js              # ✅ Autenticação
+│   │   ├── authHelper.js               # ✅ Funções auxiliares
+│   │   ├── produtosService.js          # ⏳ A implementar
+│   │   ├── estoqueService.js           # ⏳ A implementar
+│   │   ├── clientesService.js          # ⏳ A implementar
+│   │   ├── pedidosService.js           # ⏳ A implementar
+│   │   ├── producaoService.js          # ⏳ A implementar
+│   │   └── financeiroService.js        # ⏳ A implementar
+│   │
+│   ├── repositories/                   # SQL puro (sem lógica)
+│   │   ├── usuariosRepository.js       # ✅ Usuários
+│   │   ├── produtosRepository.js       # ⏳ A implementar
+│   │   ├── estoqueRepository.js        # ⏳ A implementar
+│   │   ├── clientesRepository.js       # ⏳ A implementar
+│   │   ├── pedidosRepository.js        # ⏳ A implementar
+│   │   ├── producaoRepository.js       # ⏳ A implementar
+│   │   └── financeiroRepository.js     # ⏳ A implementar
+│   │
+│   ├── routes/                         # Wiring apenas (sem business logic)
+│   │   ├── auth.js                     # ✅ Autenticação
+│   │   ├── produtos.js                 # ⏳ A implementar
+│   │   ├── estoque.js                  # ⏳ A implementar
+│   │   ├── clientes.js                 # ⏳ A implementar
+│   │   ├── pedidos.js                  # ⏳ A implementar
+│   │   ├── producao.js                 # ⏳ A implementar
+│   │   └── financeiro.js               # ⏳ A implementar
+│   │
+│   └── db/
+│       ├── connection.js               # ✅ Pool de conexão MySQL
+│       ├── transaction.js              # ✅ Utilitários de transação
+│       └── test-connection.js          # ✅ Script de teste de conexão
+│
+├── test/
+│   └── integration_tests.sh            # ⏳ Testes de integração
+│
+└── node_modules/                       # Gerenciado por npm
 ```
 
-### Frontend
+### 4.2 Frontend (Real + Alvo)
 
 ```
 Frontend/
-├── src/
-│   ├── pages/             # Uma pasta por módulo
-│   │   ├── Estoque/
-│   │   ├── Pedidos/
-│   │   ├── Clientes/
-│   │   ├── Producao/
-│   │   ├── Financeiro/
-│   │   └── Relatorios/
-│   │
-│   ├── components/        # Componentes reutilizáveis
-│   ├── services/          # Funções Axios por módulo (api calls)
-│   ├── hooks/             # Custom hooks
-│   ├── context/           # AuthContext (token JWT)
-│   ├── routes/            # React Router (rotas protegidas)
-│   └── main.jsx
+├── package.json                        # ⏳ Setup (React, Vite)
+├── vite.config.js                      # ⏳ Configuração Vite
+├── .env                                # ⏳ API URL, etc
 │
-└── package.json
+└── src/
+    ├── main.jsx                        # ⏳ Entry point
+    ├── App.jsx                         # ⏳ Root component
+    │
+    ├── pages/                          # Uma página por módulo
+    │   ├── Login.jsx                   # ⏳ Tela de login
+    │   ├── Dashboard.jsx               # ⏳ Tela inicial
+    │   ├── Estoque/
+    │   │   ├── ListaProdutos.jsx       # ⏳ Listagem
+    │   │   ├── FormProduto.jsx         # ⏳ Cadastro/edição
+    │   │   └── MovimentacoesEstoque.jsx
+    │   ├── Pedidos/
+    │   ├── Clientes/
+    │   ├── Producao/
+    │   ├── Financeiro/
+    │   └── Relatorios/
+    │
+    ├── components/                     # Componentes reutilizáveis
+    │   ├── Header.jsx                  # ⏳ Cabeçalho
+    │   ├── Sidebar.jsx                 # ⏳ Menu lateral
+    │   ├── Form/
+    │   ├── Table/
+    │   └── Modal/
+    │
+    ├── services/                       # API clients
+    │   ├── api.js                      # ⏳ Instância Axios
+    │   ├── authService.js              # ⏳ Chamadas auth
+    │   ├── produtosService.js          # ⏳ Chamadas produtos
+    │   └── ...
+    │
+    ├── hooks/                          # Custom hooks
+    │   ├── useAuth.js                  # ⏳ Autenticação
+    │   ├── useFetch.js                 # ⏳ Fetch genérico
+    │   └── ...
+    │
+    ├── context/                        # Context API (estado global)
+    │   └── AuthContext.jsx             # ⏳ Contexto de autenticação
+    │
+    └── styles/                         # Estilos
+        ├── index.css                   # ⏳ Estilos globais
+        └── variables.css               # ⏳ Variáveis (cores, espaçamentos)
 ```
 
-### 3.1 Status Real de Implementação (maio/2026)
+---
 
-#### Backend
+## 5. Banco de Dados
 
-Implementado e funcional:
+### 5.1 Tabelas Implementadas
 
-- `src/server.js` com Fastify em execução, CORS e plugin JWT registrados.
-- Pool de conexão MySQL via `src/db/connection.js`.
-- Teste de conexão via `src/db/test-connection.js` (valida comunicação com banco).
-- Endpoint de verificação: `GET /health/db`.
-
-Implementado parcialmente:
-
-- Autenticação JWT apenas na infraestrutura (`app.register(jwt)` + `app.decorate('authenticate')`), sem fluxo completo de login.
-
-Ainda não implementado no backend:
-
-- Camadas de negócio por módulo (`controllers/`, `services/`, `repository/`, `routes/`) ainda sem arquivos implementados.
-- Endpoints de Auth, Produtos, Estoque, Clientes, Pedidos, Produção, Financeiro e Relatórios descritos na seção 5.
-- Regras de negócio (validações, casos de uso, persistência por módulo).
-
-#### Frontend
-
-Implementado:
-
-- Apenas `package.json` base com `react` e `react-dom`.
-
-Ainda não implementado no frontend:
-
-- Estrutura `src/` (pages, components, hooks, context, routes).
-- Configuração Vite e scripts de execução/build do frontend.
-- Camada de serviços Axios e integração com backend.
-- Telas dos módulos de negócio.
-
-#### Banco de Dados
-
-Implementado e funcional:
-
-- Configuração de conexão com MySQL via variáveis de ambiente.
-- Conectividade validada por script de teste `test-connection.js`.
-
-Pendente de validação neste repositório:
-
--- Versionamento/migrações de schema dentro do projeto (o script está documentado, existe agora um SQL mínimo em `Backend/sql/create_schema_and_seed.sql`).
-
-Rotina de deploy/migração: sempre que subir uma nova versão que altere schema, adicione um script versionado em `Backend/sql/` e documente no changelog. Exemplo: "Ao subir versão X, rode: `mysql -u user -p database < Backend/sql/2026-05-13-add-pedidos.sql`".
+#### `usuarios` ✅
+| Campo       | Tipo         | Atributos                |
+|-------------|--------------|--------------------------|
+| id          | INT          | PK, AUTO_INCREMENT       |
+| email       | VARCHAR(150) | UNIQUE, NOT NULL         |
+| nome        | VARCHAR(100) | NOT NULL                 |
+| senha_hash  | VARCHAR(255) | NOT NULL                 |
+| perfil      | VARCHAR(50)  | DEFAULT 'usuario'        |
+| ativo       | TINYINT(1)   | DEFAULT 1                |
+| criado_em   | DATETIME     | DEFAULT CURRENT_TIMESTAMP|
 
 ---
 
-## 4. Banco de Dados
+### 5.2 Tabelas Planejadas
 
-### 4.1 Tabelas
+#### `produtos` ⏳
+| Campo          | Tipo                | Atributos     |
+|----------------|---------------------|---------------|
+| id             | INT                 | PK, AI        |
+| nome           | VARCHAR(100)        | NOT NULL      |
+| categoria      | VARCHAR(50)         | ex: calcinha, sutiã |
+| cor            | VARCHAR(50)         |               |
+| tamanho        | VARCHAR(10)         | P, M, G, GG   |
+| preco_custo    | DECIMAL(10,2)       |               |
+| preco_venda    | DECIMAL(10,2)       |               |
+| estoque_minimo | INT                 | DEFAULT 0     |
+| ativo          | TINYINT(1)          | DEFAULT 1     |
+| criado_em      | DATETIME            | DEFAULT NOW() |
 
-#### `usuarios`
-| Campo       | Tipo         | Descrição                  |
-|-------------|--------------|----------------------------|
-| id          | INT PK AI    |                            |
-| nome        | VARCHAR(100) |                            |
-| email       | VARCHAR(150) | único                      |
-| senha_hash  | VARCHAR(255) | hash bcrypt                |
-| criado_em   | DATETIME     | default: NOW()             |
+#### `estoque` ⏳
+| Campo      | Tipo     | Atributos                  |
+|------------|----------|----------------------------|
+| id         | INT      | PK, AI                     |
+| produto_id | INT      | FK → produtos.id           |
+| tipo       | ENUM     | 'entrada' ou 'saida'       |
+| quantidade | INT      |                            |
+| motivo     | VARCHAR  | ex: compra, venda, ajuste  |
+| criado_em  | DATETIME | DEFAULT NOW()              |
 
----
-
-#### `produtos`
-| Campo          | Tipo                                              | Descrição             |
-|----------------|---------------------------------------------------|-----------------------|
-| id             | INT PK AI                                         |                       |
-| nome           | VARCHAR(100)                                      |                       |
-| categoria      | ENUM('calcinha','sutia','body','camisola','outro') |                       |
-| cor            | VARCHAR(50)                                       |                       |
-| tamanho        | VARCHAR(10)                                       | ex: P, M, G, GG       |
-| preco_custo    | DECIMAL(10,2)                                     |                       |
-| preco_venda    | DECIMAL(10,2)                                     |                       |
-| estoque_minimo | INT                                               | default: 0            |
-| ativo          | TINYINT(1)                                        | default: 1            |
-| criado_em      | DATETIME                                          | default: NOW()        |
-
----
-
-#### `estoque`
-| Campo       | Tipo                    | Descrição                        |
-|-------------|-------------------------|----------------------------------|
-| id          | INT PK AI               |                                  |
-| produto_id  | INT FK → produtos.id    |                                  |
-| tipo        | ENUM('entrada','saida') |                                  |
-| quantidade  | INT                     |                                  |
-| motivo      | VARCHAR(255)            | ex: compra, venda, ajuste        |
-| referencia  | VARCHAR(100)            | ex: pedido #42 (opcional)        |
-| criado_em   | DATETIME                | default: NOW()                   |
-
----
-
-#### `clientes`
-| Campo       | Tipo         | Descrição        |
+#### `clientes` ⏳
+| Campo       | Tipo         | Atributos        |
 |-------------|--------------|------------------|
-| id          | INT PK AI    |                  |
-| nome        | VARCHAR(100) |                  |
+| id          | INT          | PK, AI           |
+| nome        | VARCHAR(150) | NOT NULL         |
 | telefone    | VARCHAR(20)  |                  |
 | email       | VARCHAR(150) |                  |
 | endereco    | TEXT         |                  |
 | observacoes | TEXT         |                  |
-| ativo       | TINYINT(1)   | default: 1       |
-| criado_em   | DATETIME     | default: NOW()   |
+| ativo       | TINYINT(1)   | DEFAULT 1        |
+| criado_em   | DATETIME     | DEFAULT NOW()    |
+
+#### `pedidos` ⏳
+| Campo            | Tipo     | Atributos                       |
+|------------------|----------|---------------------------------|
+| id               | INT      | PK, AI                          |
+| cliente_id       | INT      | FK → clientes.id                |
+| status           | ENUM     | aguardando, em_producao, pronto, entregue, cancelado |
+| forma_pagamento  | ENUM     | pix, dinheiro, cartao           |
+| status_pagamento | ENUM     | pendente, pago, atrasado        |
+| total            | DECIMAL  | Calculado                       |
+| criado_em        | DATETIME | DEFAULT NOW()                   |
+
+#### `pedido_itens` ⏳
+| Campo      | Tipo    | Atributos           |
+|------------|---------|---------------------|
+| id         | INT     | PK, AI              |
+| pedido_id  | INT     | FK → pedidos.id     |
+| produto_id | INT     | FK → produtos.id    |
+| quantidade | INT     |                     |
+| preco_unit | DECIMAL | Preço no momento    |
+
+#### `producao` ⏳
+| Campo          | Tipo     | Atributos                       |
+|----------------|----------|---------------------------------|
+| id             | INT      | PK, AI                          |
+| pedido_id      | INT      | FK → pedidos.id                 |
+| responsavel    | VARCHAR  |                                 |
+| status         | ENUM     | pendente, em_andamento, concluida |
+| prazo_estimado | DATE     |                                 |
+| data_conclusao | DATE     | Nullable                        |
+| criado_em      | DATETIME | DEFAULT NOW()                   |
+
+#### `financeiro` ⏳
+| Campo      | Tipo     | Atributos                    |
+|------------|----------|------------------------------|
+| id         | INT      | PK, AI                       |
+| tipo       | ENUM     | 'receita' ou 'despesa'       |
+| descricao  | VARCHAR  |                              |
+| categoria  | VARCHAR  | venda, matéria-prima, etc    |
+| valor      | DECIMAL  |                              |
+| status     | ENUM     | pendente, pago, atrasado     |
+| pedido_id  | INT      | FK → pedidos.id (nullable)   |
+| criado_em  | DATETIME | DEFAULT NOW()                |
 
 ---
 
-#### `pedidos`
-| Campo            | Tipo                                                            | Descrição        |
-|------------------|-----------------------------------------------------------------|------------------|
-| id               | INT PK AI                                                       |                  |
-| cliente_id       | INT FK → clientes.id                                            |                  |
-| status           | ENUM('aguardando','em_producao','pronto','entregue','cancelado') | default: aguardando |
-| forma_pagamento  | ENUM('pix','dinheiro','cartao','outro')                         |                  |
-| status_pagamento | ENUM('pendente','pago','atrasado')                              | default: pendente |
-| motivo_cancelamento | VARCHAR(255)                                                 | nullable         |
-| total            | DECIMAL(10,2)                                                   | calculado        |
-| criado_em        | DATETIME                                                        | default: NOW()   |
-| atualizado_em    | DATETIME                                                        |                  |
+## 6. Como Executar
 
----
+### 6.1 Backend
 
-#### `itens_pedido`
-| Campo      | Tipo               | Descrição         |
-|------------|--------------------|-------------------|
-| id         | INT PK AI          |                   |
-| pedido_id  | INT FK → pedidos.id|                   |
-| produto_id | INT FK → produtos.id|                  |
-| quantidade | INT                |                   |
-| preco_unit | DECIMAL(10,2)      | preço no momento da venda |
+```bash
+cd Backend/src
 
----
+# Instalar dependências
+npm install
 
-#### `producao`
-| Campo           | Tipo                                      | Descrição      |
-|-----------------|-------------------------------------------|----------------|
-| id              | INT PK AI                                 |                |
-| pedido_id       | INT FK → pedidos.id                       |                |
-| responsavel     | VARCHAR(100)                              |                |
-| status          | ENUM('pendente','em_andamento','concluida')| default: pendente |
-| prazo_estimado  | DATE                                      |                |
-| data_conclusao  | DATE                                      | nullable       |
-| observacoes     | TEXT                                      |                |
-| criado_em       | DATETIME                                  | default: NOW() |
+# Definir variáveis de ambiente
+cp .env.example .env
+# editar .env com dados do banco MySQL
 
----
+# Testar conexão com banco
+node db/test-connection.js
 
-#### `financeiro`
-| Campo       | Tipo                        | Descrição                       |
-|-------------|-----------------------------|---------------------------------|
-| id          | INT PK AI                   |                                 |
-| tipo        | ENUM('receita','despesa')   |                                 |
-| descricao   | VARCHAR(255)                |                                 |
-| categoria   | VARCHAR(100)                | ex: venda, matéria-prima        |
-| valor       | DECIMAL(10,2)               |                                 |
-| status      | ENUM('pendente','pago','atrasado') | default: pendente        |
-| pedido_id   | INT FK → pedidos.id         | nullable (receitas automáticas) |
-| data        | DATE                        |                                 |
-| criado_em   | DATETIME                    | default: NOW()                  |
+# Iniciar servidor em desenvolvimento
+npm run dev
 
----
-
-### 4.2 Relacionamentos
-
-```
-usuarios         (standalone)
-produtos         (standalone)
-estoque          → produtos
-clientes         (standalone)
-pedidos          → clientes
-itens_pedido     → pedidos, produtos
-producao         → pedidos
-financeiro       → pedidos (opcional)
+# Servidor será executado em: http://localhost:3000 (ou porta definida em .env)
 ```
 
-### 4.3 Script de Criação MySQL
+### 6.2 Frontend
 
-```sql
--- ============================================================
--- SCHEMA: lingerie / moda íntima
--- ============================================================
+```bash
+cd Frontend
 
-CREATE DATABASE IF NOT EXISTS moda_intima
-      CHARACTER SET utf8mb4 
-      COLLATE utf8mb4_unicode_ci;
+# Instalar dependências
+npm install
 
-USE moda_intima;
+# Definir variáveis de ambiente
+cp .env.example .env
+# editar .env com URL da API backend
 
--- ------------------------------------------------------------
--- USUARIOS
--- ------------------------------------------------------------
-CREATE TABLE usuarios (
-      id          INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
-      nome        VARCHAR(100)    NOT NULL,
-      email       VARCHAR(150)    NOT NULL UNIQUE,
-      senha_hash  VARCHAR(255)    NOT NULL,
-      perfil      ENUM('admin','vendas','producao','financeiro') NOT NULL DEFAULT 'vendas',
-      ativo       TINYINT(1)      NOT NULL DEFAULT 1,
-      criado_em   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+# Iniciar dev server
+npm run dev
 
--- ------------------------------------------------------------
--- CLIENTES
--- ------------------------------------------------------------
-CREATE TABLE clientes (
-      id          INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
-      nome        VARCHAR(150)    NOT NULL,
-      cpf         VARCHAR(14)     UNIQUE,
-      email       VARCHAR(150),
-      telefone    VARCHAR(20),
-      endereco    TEXT,
-      criado_em   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- ------------------------------------------------------------
--- PRODUTOS
--- ------------------------------------------------------------
-CREATE TABLE produtos (
-      id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
-      nome            VARCHAR(150)    NOT NULL,
-      categoria       ENUM('calcinha','sutia','body','camisola','conjunto','outro') NOT NULL,
-      cor             VARCHAR(50)     NOT NULL,
-      tamanho         VARCHAR(10)     NOT NULL,
-      preco_unitario  DECIMAL(10,2)   NOT NULL,
-      ativo           TINYINT(1)      NOT NULL DEFAULT 1,
-      criado_em       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- ------------------------------------------------------------
--- ESTOQUE  (movimentações, não saldo direto)
--- ------------------------------------------------------------
-CREATE TABLE estoque (
-      id               INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
-      produto_id       INT UNSIGNED    NOT NULL,
-      tipo             ENUM('entrada','saida','ajuste') NOT NULL,
-      quantidade       INT             NOT NULL,
-      motivo           VARCHAR(255),
-      referencia_tipo  ENUM('pedido','producao','manual'),
-      referencia_id    INT UNSIGNED,
-      usuario_id       INT UNSIGNED,
-      criado_em        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-      FOREIGN KEY (produto_id)  REFERENCES produtos(id),
-      FOREIGN KEY (usuario_id)  REFERENCES usuarios(id)
-);
-
--- View auxiliar: saldo atual por produto
-CREATE VIEW vw_estoque_atual AS
-SELECT
-      p.id          AS produto_id,
-      p.nome,
-      p.categoria,
-      p.cor,
-      p.tamanho,
-      SUM(
-            CASE e.tipo
-                  WHEN 'entrada' THEN  e.quantidade
-                  WHEN 'saida'   THEN -e.quantidade
-                  WHEN 'ajuste'  THEN  e.quantidade
-            END
-      ) AS saldo
-FROM produtos p
-LEFT JOIN estoque e ON e.produto_id = p.id
-GROUP BY p.id, p.nome, p.categoria, p.cor, p.tamanho;
-
--- ------------------------------------------------------------
--- PEDIDOS
--- ------------------------------------------------------------
-CREATE TABLE pedidos (
-      id            INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
-      cliente_id    INT UNSIGNED    NOT NULL,
-      usuario_id    INT UNSIGNED,
-      status        ENUM('aberto','producao','pronto','entregue','cancelado') NOT NULL DEFAULT 'aberto',
-      total         DECIMAL(10,2)   NOT NULL DEFAULT 0,
-      observacoes   TEXT,
-      criado_em     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      fechado_em    DATETIME,
-
-      FOREIGN KEY (cliente_id)  REFERENCES clientes(id),
-      FOREIGN KEY (usuario_id)  REFERENCES usuarios(id)
-);
-
--- ------------------------------------------------------------
--- ITENS_PEDIDO
--- ------------------------------------------------------------
-CREATE TABLE itens_pedido (
-      id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
-      pedido_id       INT UNSIGNED    NOT NULL,
-      produto_id      INT UNSIGNED    NOT NULL,
-      quantidade      INT             NOT NULL,
-      preco_unitario  DECIMAL(10,2)   NOT NULL,
-      subtotal        DECIMAL(10,2)   GENERATED ALWAYS AS (quantidade * preco_unitario) STORED,
-
-      FOREIGN KEY (pedido_id)   REFERENCES pedidos(id),
-      FOREIGN KEY (produto_id)  REFERENCES produtos(id)
-);
-
--- ------------------------------------------------------------
--- PRODUCAO
--- ------------------------------------------------------------
-CREATE TABLE producao (
-      id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
-      pedido_id       INT UNSIGNED    NOT NULL UNIQUE,
-      status          ENUM('pendente','em_producao','concluido','cancelado') NOT NULL DEFAULT 'pendente',
-      responsavel_id  INT UNSIGNED,
-      observacoes     TEXT,
-      iniciado_em     DATETIME,
-      concluido_em    DATETIME,
-      criado_em       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-      FOREIGN KEY (pedido_id)       REFERENCES pedidos(id),
-      FOREIGN KEY (responsavel_id)  REFERENCES usuarios(id)
-);
-
--- ------------------------------------------------------------
--- FINANCEIRO
--- ------------------------------------------------------------
-CREATE TABLE financeiro (
-      id              INT UNSIGNED    AUTO_INCREMENT PRIMARY KEY,
-      pedido_id       INT UNSIGNED    NOT NULL UNIQUE,
-      tipo            ENUM('receita','despesa') NOT NULL DEFAULT 'receita',
-      valor           DECIMAL(10,2)   NOT NULL,
-      descricao       VARCHAR(255),
-      registrado_em   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-      FOREIGN KEY (pedido_id) REFERENCES pedidos(id)
-);
-
--- ============================================================
--- TRIGGERS
--- ============================================================
-
-DELIMITER $$
-
--- 1. Seta fechado_em quando pedido vira 'entregue'
-CREATE TRIGGER trg_pedido_fechar
-BEFORE UPDATE ON pedidos
-FOR EACH ROW
-BEGIN
-      IF NEW.status = 'entregue' AND OLD.status != 'entregue' THEN
-            SET NEW.fechado_em = NOW();
-      END IF;
-END$$
-
--- 2. Registra receita no financeiro automaticamente
-CREATE TRIGGER trg_pedido_receita
-AFTER UPDATE ON pedidos
-FOR EACH ROW
-BEGIN
-      IF NEW.status = 'entregue' AND OLD.status != 'entregue' THEN
-            INSERT INTO financeiro (pedido_id, tipo, valor, descricao)
-            VALUES (
-                  NEW.id,
-                  'receita',
-                  NEW.total,
-                  CONCAT('Receita automática — Pedido #', NEW.id)
-            );
-      END IF;
-END$$
- 
--- 3. Baixa estoque quando item é adicionado a um pedido
-CREATE TRIGGER trg_item_saida_estoque
-AFTER INSERT ON itens_pedido
-FOR EACH ROW
-BEGIN
-      INSERT INTO estoque (produto_id, tipo, quantidade, motivo, referencia_tipo, referencia_id)
-      VALUES (NEW.produto_id, 'saida', NEW.quantidade, 'Saída por pedido', 'pedido', NEW.pedido_id);
-END$$
-
-DELIMITER ;
+# Será executado em: http://localhost:5173 (porta padrão Vite)
 ```
-
-Pontos de atenção do script:
-
-**`estoque` como ledger** — o saldo real fica na view `vw_estoque_atual`, garantindo rastreabilidade das movimentações.
-
-**`itens_pedido.preco_unitario`** — o valor é um snapshot do momento da venda para preservar o histórico.
-
-**`financeiro` dispara só em `'entregue'`** — se o gatilho de receita precisar acontecer em outro status, basta ajustar os dois triggers relacionados.
-
-**`producao` com `UNIQUE` em `pedido_id`** — o modelo força relação 1:1 entre pedido e ordem de produção.
-
-**FK polimórfica em `estoque`** — `referencia_tipo` + `referencia_id` não recebem FK formal porque o MySQL não suporta esse padrão nativamente.
 
 ---
 
-## 5. Endpoints da API
+## 7. Convenções de Código
 
-> **Importante:** a lista abaixo representa os endpoints planejados/alvo do sistema. No estado atual do código, o único endpoint implementado e funcional é `GET /health/db`.
+### 7.1 Nomes de Arquivo
 
-Todas as rotas (exceto `/auth/login`) exigem header:
+- **Controllers:** `nomeController.js` (ex: `produtosController.js`)
+- **Services:** `nomeService.js` (ex: `produtosService.js`)
+- **Repositories:** `nomeRepository.js` (ex: `produtosRepository.js`)
+- **Routes:** `nome.js` (ex: `produtos.js`)
+
+### 7.2 Nomes de Função
+
+- Controllers, Services, Repositories: camelCase (ex: `findByEmail`, `createProduct`)
+- Arquivo de rotas: export nomeado (ex: `export async function produtosRoutes(app)`)
+
+### 7.3 Padrão de Resposta HTTP
+
+**Sucesso (2xx):**
+```json
+{
+  "data": { ... },
+  "message": "Descrição do sucesso"
+}
 ```
-Authorization: Bearer <token>
+
+**Erro (4xx/5xx):**
+```json
+{
+  "error": "BadRequest" ou "NotFound" ou "InternalServerError",
+  "message": "Descrição legível do erro",
+  "details": null
+}
 ```
 
-### Auth
-| Método | Rota         | Descrição       |
-|--------|--------------|-----------------|
-| POST   | /auth/login  | Login, retorna JWT |
+### 7.4 Estrutura de Validação de Rotas
 
-### Produtos
-| Método | Rota              | Descrição                  |
-|--------|-------------------|----------------------------|
-| GET    | /produtos         | Listar todos (ativos)      |
-| GET    | /produtos/:id     | Buscar por ID              |
-| POST   | /produtos         | Criar produto              |
-| PUT    | /produtos/:id     | Editar produto             |
-| PATCH  | /produtos/:id/inativar | Inativar produto      |
-
-### Estoque
-| Método | Rota                    | Descrição                   |
-|--------|-------------------------|-----------------------------|
-| GET    | /estoque                | Saldo atual por produto     |
-| GET    | /estoque/:produto_id/historico | Movimentações do produto |
-| POST   | /estoque/entrada        | Registrar entrada           |
-| POST   | /estoque/saida          | Registrar saída manual      |
-
-### Clientes
-| Método | Rota                    | Descrição                  |
-|--------|-------------------------|----------------------------|
-| GET    | /clientes               | Listar todos               |
-| GET    | /clientes/:id           | Buscar por ID              |
-| GET    | /clientes/:id/pedidos   | Histórico de pedidos       |
-| POST   | /clientes               | Criar cliente              |
-| PUT    | /clientes/:id           | Editar cliente             |
-| PATCH  | /clientes/:id/inativar  | Inativar cliente           |
-
-### Pedidos
-| Método | Rota                          | Descrição                     |
-|--------|-------------------------------|-------------------------------|
-| GET    | /pedidos                      | Listar todos                  |
-| GET    | /pedidos/:id                  | Buscar por ID (com itens)     |
-| POST   | /pedidos                      | Criar pedido                  |
-| PATCH  | /pedidos/:id/status           | Atualizar status              |
-| PATCH  | /pedidos/:id/cancelar         | Cancelar pedido               |
-
-### Produção
-| Método | Rota                        | Descrição                    |
-|--------|-----------------------------|------------------------------|
-| GET    | /producao                   | Listar ordens                |
-| GET    | /producao/:id               | Buscar por ID                |
-| POST   | /producao                   | Criar ordem de produção      |
-| PUT    | /producao/:id               | Editar ordem                 |
-| PATCH  | /producao/:id/status        | Atualizar status             |
-
-### Financeiro
-| Método | Rota              | Descrição                   |
-|--------|-------------------|-----------------------------|
-| GET    | /financeiro       | Listar transações           |
-| GET    | /financeiro/saldo | Saldo do período (query params: de, ate) |
-| POST   | /financeiro       | Criar despesa manual        |
-| PUT    | /financeiro/:id   | Editar transação            |
-
-### Relatórios
-| Método | Rota                        | Descrição                          |
-|--------|-----------------------------|------------------------------------|
-| GET    | /relatorios/vendas          | Vendas por período                 |
-| GET    | /relatorios/produtos        | Produtos mais vendidos             |
-| GET    | /relatorios/clientes        | Clientes com maior volume          |
-| GET    | /relatorios/fluxo-caixa     | Fluxo de caixa por período         |
-| GET    | /relatorios/producao        | Ordens por status e responsável    |
+Usar JSON Schema no Fastify:
+```javascript
+app.post('/endpoint', { schema: { body: {...} } }, handler)
+```
 
 ---
 
-## 6. Autenticação
+## 8. Regras de Negócio
 
-- Login via `POST /auth/login` com `{ email, senha }`
-- Backend valida senha com bcrypt e retorna `{ token }` (JWT assinado com secret do `.env`)
-- Expiração padrão: 8h
-- Frontend armazena o token e injeta via Axios interceptor em todas as requisições
-- Rotas protegidas no Fastify via hook `preHandler` com verificação do token
+(Vide arquivo `requisitos.md` para detalhes completos)
+
+**RN01** — Um pedido só pode ser criado para cliente ativo  
+**RN02** — Ao confirmar pedido, estoque é decrementado automaticamente  
+**RN03** — Ao cancelar pedido, estoque é restaurado  
+**RN04** — Pedido com status `Entregue` não pode ser editado  
+**RN05** — Ao fechar pedido (`Entregue`), uma receita é gerada no financeiro  
+**RN06** — Produtos inativados não aparecem na seleção de novos pedidos  
+**RN07** — Não é permitido excluir produtos, clientes ou pedidos — apenas inativar/cancelar
 
 ---
 
-## 7. Variáveis de Ambiente (`.env`)
+## 9. Roadmap de Implementação
 
-```env
-PORT=3333
+| Fase | Módulo      | Estimativa | Status   |
+|------|-------------|------------|----------|
+| 1    | Auth        | ✅ Completo | ✅ Done  |
+| 2    | Produtos    | ~5 dias    | ⏳ To-do |
+| 3    | Estoque     | ~5 dias    | ⏳ To-do |
+| 4    | Clientes    | ~3 dias    | ⏳ To-do |
+| 5    | Pedidos     | ~8 dias    | ⏳ To-do |
+| 6    | Produção    | ~5 dias    | ⏳ To-do |
+| 7    | Financeiro  | ~5 dias    | ⏳ To-do |
+| 8    | Relatórios  | ~5 dias    | ⏳ To-do |
+| 9    | Frontend    | ~20 dias   | ⏳ To-do |
+| 10   | Testes      | ~5 dias    | ⏳ To-do |
+
+---
+
+## 10. Variáveis de Ambiente
+
+### Backend (.env)
+
+```
+NODE_ENV=development
+PORT=3000
+
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
-DB_PASSWORD=sua_senha
+DB_PASSWORD=
 DB_NAME=moda_intima
-JWT_SECRET=sua_chave_secreta
+
+JWT_SECRET=sua_chave_secreta_aqui
+JWT_EXPIRATION=24h
+
+LOG_LEVEL=debug
 ```
+
+### Frontend (.env)
+
+```
+VITE_API_URL=http://localhost:3000
+VITE_API_TIMEOUT=30000
+```
+
+---
+
+## 11. Referências
+
+- [Fastify Docs](https://www.fastify.io/)
+- [React Docs](https://react.dev/)
+- [Vite Docs](https://vitejs.dev/)
+- [MySQL Docs](https://dev.mysql.com/doc/)
+- [JWT Handbook](https://auth0.com/resources/ebooks/jwt-handbook)
+
+---
+
+**Última atualização:** 2026-05-13  
+**Responsável:** Heitor Henrique Sampaio Chagas
+**Próxima revisão:** Quando novo módulo for implementado
