@@ -26,6 +26,15 @@ app.decorate('authenticate', async (req, reply) => {
     reply.code(401).send({ error: 'Token inválido ou ausente.' })
   }
 })
+
+app.get('/health/db', async (req, reply) => {
+  try {
+    const [rows] = await db.query('SELECT 1 AS ok')
+    reply.code(200).send({ db: 'ok', rows })
+  } catch (err) {
+    reply.code(500).send({ db: 'error', message: err.message })
+  }
+})
  
 const PORT = process.env.PORT || 3333
  
