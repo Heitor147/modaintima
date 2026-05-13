@@ -3,6 +3,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import db from './db/connection.js'
+import { authRoutes } from './routes/auth.js'
  
 const app = Fastify({ logger: true })
 
@@ -35,7 +36,10 @@ app.get('/health/db', async (req, reply) => {
     reply.code(500).send({ db: 'error', message: err.message })
   }
 })
- 
+
+// Registrar rotas
+await app.register(authRoutes)
+
 const PORT = process.env.PORT || 3333
  
 try {
