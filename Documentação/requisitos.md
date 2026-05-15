@@ -1,12 +1,12 @@
 # Documento de Requisitos — Sistema de Gestão de Moda Íntima
 
 > **Status:** Documento de requisitos funcionais e não-funcionais  
-> **Última atualização:** 2026-05-13  
+> **Última atualização:** 2026-05-15  
 > **Versão:** 1.0
 
 ## 1. Visão Geral
 
-Sistema web de uso interno para gestão operacional de uma microempresa de moda íntima feminina. Centraliza o controle de estoque, pedidos, clientes, produção, financeiro e relatórios em uma única plataforma acessível via navegador.
+Sistema web de uso interno para gestão operacional de uma microempresa de moda íntima feminina. No estado atual, o backend já cobre autenticação, catálogo de produtos e health check do banco; os demais módulos seguem em planejamento.
 
 **Tipo de sistema:** Web app (uso interno)  
 **Usuários:** Funcionários da empresa (1–3 simultâneos)  
@@ -28,13 +28,27 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 
 ---
 
-### 2.2 Estoque ⏳ **PLANEJADO**
+### 2.2 Produtos ✅ **IMPLEMENTADO**
 
-**RF01** — Cadastrar produtos com nome, categoria, cor, tamanho, preço de custo e preço de venda.  
-**RF02** — Registrar entradas e saídas de estoque vinculadas a um produto.  
-**RF03** — Consultar saldo atual de estoque por produto.  
-**RF04** — Emitir alerta quando o estoque de um produto atingir o estoque mínimo configurado.  
-**RF05** — Inativar produtos sem excluí-los do histórico.
+**RF01** — Cadastrar novo produto com nome, categoria, cor, tamanho, preço de custo, preço de venda, preço unitário e estoque mínimo.  
+**RF02** — Listar produtos cadastrados.  
+**RF03** — Consultar produto por ID.  
+**RF04** — Atualizar dados do produto.  
+**RF05** — Inativar produto sem exclusão física.
+
+**Prioridade:** Alta  
+**Estimativa:** Concluído  
+**Status:** ✅ CRUD de catálogo e soft delete implementados
+
+---
+
+### 2.3 Estoque ⏳ **PLANEJADO**
+
+**RF06** — Registrar entradas e saídas de estoque vinculadas a um produto.  
+**RF07** — Consultar saldo atual de estoque por produto.  
+**RF08** — Emitir alerta quando o estoque de um produto atingir o estoque mínimo configurado.  
+**RF09** — Registrar histórico de movimentações de estoque.  
+**RF10** — Ajustar inventário manualmente.
 
 **Prioridade:** Alta  
 **Estimativa:** ~5 dias  
@@ -42,13 +56,13 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 
 ---
 
-### 2.3 Pedidos / Vendas ⏳ **PLANEJADO**
+### 2.4 Pedidos / Vendas ⏳ **PLANEJADO**
 
-**RF06** — Registrar pedidos vinculados a um cliente.  
-**RF07** — Adicionar múltiplos itens (produto + quantidade) a um pedido.  
-**RF08** — Acompanhar o status do pedido: `Aguardando`, `Em produção`, `Pronto`, `Entregue`, `Cancelado`.  
-**RF09** — Registrar forma de pagamento e status de pagamento.  
-**RF10** — Cancelar pedido com registro de motivo.
+**RF11** — Registrar pedidos vinculados a um cliente.  
+**RF12** — Adicionar múltiplos itens (produto + quantidade) a um pedido.  
+**RF13** — Acompanhar o status do pedido: `Aguardando`, `Em produção`, `Pronto`, `Entregue`, `Cancelado`.  
+**RF14** — Registrar forma de pagamento e status de pagamento.  
+**RF15** — Cancelar pedido com registro de motivo.
 
 **Prioridade:** Alta  
 **Estimativa:** ~8 dias  
@@ -56,12 +70,12 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 
 ---
 
-### 2.4 Clientes (CRM) ⏳ **PLANEJADO**
+### 2.5 Clientes (CRM) ⏳ **PLANEJADO**
 
-**RF11** — Cadastrar clientes com nome, telefone, e-mail e endereço.  
-**RF12** — Consultar histórico de pedidos por cliente.  
-**RF13** — Registrar observações sobre o cliente (ex: preferências, restrições).  
-**RF14** — Inativar clientes sem excluí-los do histórico.
+**RF16** — Cadastrar clientes com nome, telefone, e-mail e endereço.  
+**RF17** — Consultar histórico de pedidos por cliente.  
+**RF18** — Registrar observações sobre o cliente (ex: preferências, restrições).  
+**RF19** — Inativar clientes sem excluí-los do histórico.
 
 **Prioridade:** Alta  
 **Estimativa:** ~3 dias  
@@ -69,12 +83,12 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 
 ---
 
-### 2.5 Produção / Costura ⏳ **PLANEJADO**
+### 2.6 Produção / Costura ⏳ **PLANEJADO**
 
-**RF15** — Criar ordens de produção vinculadas a pedidos.  
-**RF16** — Definir responsável pela produção e prazo estimado de entrega.  
-**RF17** — Acompanhar o status da produção: `Pendente`, `Em andamento`, `Concluída`.  
-**RF18** — Registrar data de conclusão real da produção.
+**RF20** — Criar ordens de produção vinculadas a pedidos.  
+**RF21** — Definir responsável pela produção e prazo estimado de entrega.  
+**RF22** — Acompanhar o status da produção: `Pendente`, `Em andamento`, `Concluída`.  
+**RF23** — Registrar data de conclusão real da produção.
 
 **Prioridade:** Alta  
 **Estimativa:** ~5 dias  
@@ -86,10 +100,10 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 
 ### 3.1 Financeiro ⏳ **PLANEJADO**
 
-**RF19** — Registrar receitas (geradas automaticamente ao fechar um pedido) e despesas manuais.  
-**RF20** — Categorizar despesas (ex: matéria-prima, mão de obra, transporte).  
-**RF21** — Consultar saldo do período (receitas − despesas).  
-**RF22** — Registrar o status de pagamento de cada transação: `Pendente`, `Pago`, `Atrasado`.
+**RF24** — Registrar receitas (geradas automaticamente ao fechar um pedido) e despesas manuais.  
+**RF25** — Categorizar despesas (ex: matéria-prima, mão de obra, transporte).  
+**RF26** — Consultar saldo do período (receitas − despesas).  
+**RF27** — Registrar o status de pagamento de cada transação: `Pendente`, `Pago`, `Atrasado`.
 
 **Prioridade:** Média  
 **Estimativa:** ~5 dias  
@@ -99,11 +113,11 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 
 ### 3.2 Relatórios ⏳ **PLANEJADO**
 
-**RF23** — Relatório de vendas por período.  
-**RF24** — Relatório de produtos mais vendidos.  
-**RF25** — Relatório de clientes com maior volume de pedidos.  
-**RF26** — Relatório de fluxo de caixa por período.  
-**RF27** — Relatório de produção (ordens por status, por responsável).
+**RF28** — Relatório de vendas por período.  
+**RF29** — Relatório de produtos mais vendidos.  
+**RF30** — Relatório de clientes com maior volume de pedidos.  
+**RF31** — Relatório de fluxo de caixa por período.  
+**RF32** — Relatório de produção (ordens por status, por responsável).
 
 **Prioridade:** Média  
 **Estimativa:** ~5 dias  
@@ -115,7 +129,7 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 
 **RNF01** — O sistema deve responder a qualquer requisição em menos de 2 segundos em condições normais de uso.  
 **RNF02** — Dados sensíveis (senha) devem ser armazenados com hash bcryptjs (salt factor 10).  
-**RNF03** — A API deve exigir token JWT válido em todas as rotas, exceto `/auth/login` e `/auth/register`.  
+**RNF03** — A API deve exigir token JWT válido nas rotas protegidas (`/auth/me`, `/auth/logout`, `POST/PUT/DELETE /produtos`).  
 **RNF04** — O sistema deve funcionar em rede local sem dependência de internet.  
 **RNF05** — A interface deve ser responsiva e funcional em telas a partir de 1024px.  
 **RNF06** — Logs de todas as operações críticas (registro de pedido, alteração de estoque, etc.) devem ser registrados.  
@@ -133,7 +147,7 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 **RN06** — Produtos inativados não aparecem na seleção de novos pedidos.  
 **RN07** — Não é permitido excluir produtos, clientes ou pedidos — apenas inativar ou cancelar.  
 **RN08** — Uma ordem de produção só pode ser criada para um pedido em status `Aguardando`.  
-**RN09** — Apenas usuários com perfil `admin` podem criar outros usuários.  
+**RN09** — Não há controle de perfil `admin` implementado no backend atual; novos usuários podem ser cadastrados via `/auth/register`.  
 **RN10** — O responsável por uma ordem de produção pode ser alterado, mas o histórico de mudanças deve ser mantido.
 
 ---
@@ -155,14 +169,14 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 | Fase | Módulo        | RF Implementados | Estimativa | Status   |
 |------|---------------|------------------|------------|----------|
 | 1    | Auth          | RF00.1–RF00.4    | ✅ Completo | ✅ Done  |
-| 2    | Produtos      | RF01–RF05        | ~5 dias    | ⏳ To-do |
-| 3    | Estoque       | RF01–RF05        | ~5 dias    | ⏳ To-do |
-| 4    | Clientes      | RF11–RF14        | ~3 dias    | ⏳ To-do |
-| 5    | Pedidos       | RF06–RF10        | ~8 dias    | ⏳ To-do |
-| 6    | Produção      | RF15–RF18        | ~5 dias    | ⏳ To-do |
-| 7    | Financeiro    | RF19–RF22        | ~5 dias    | ⏳ To-do |
-| 8    | Relatórios    | RF23–RF27        | ~5 dias    | ⏳ To-do |
-| 9    | Frontend      | Todas as páginas | ~20 dias   | ⏳ To-do |
+| 2    | Produtos      | RF01–RF05        | ✅ Completo | ✅ Done  |
+| 3    | Estoque       | RF06–RF10        | ~5 dias    | ⏳ To-do |
+| 4    | Clientes      | RF16–RF19        | ~3 dias    | ⏳ To-do |
+| 5    | Pedidos       | RF11–RF15        | ~8 dias    | ⏳ To-do |
+| 6    | Produção      | RF20–RF23        | ~5 dias    | ⏳ To-do |
+| 7    | Financeiro    | RF24–RF27        | ~5 dias    | ⏳ To-do |
+| 8    | Relatórios    | RF28–RF32        | ~5 dias    | ⏳ To-do |
+| 9    | Frontend      | Sem scaffold     | ~20 dias   | ⏳ To-do |
 | 10   | Testes        | Testes E2E       | ~5 dias    | ⏳ To-do |
 
 **Tempo total estimado:** ~65 dias de desenvolvimento (assumindo 1 dev em tempo integral)
@@ -185,4 +199,4 @@ Uma funcionalidade é considerada **pronta para produção** quando:
 
 **Responsável:** Heitor Henrique Sampaio Chagas  
 **Data de criação:** 2026-05-12  
-**Última revisão:** 2026-05-13
+**Última revisão:** 2026-05-15
