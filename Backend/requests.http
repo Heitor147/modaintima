@@ -1,0 +1,76 @@
+@baseUrl = http://localhost:3000
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjQsImVtYWlsIjoidGVzdGVAZXhlbXBsby5jb20iLCJwZXJmaWwiOiJ1c3VhcmlvIiwiaWF0IjoxNzc4ODUwMTYyLCJleHAiOjE3Nzg5MzY1NjJ9.yHFYAHTjiRqMivAJK2x2hVxgPV-1Cwuovll2_POqf7s
+
+### Health check do banco
+GET {{baseUrl}}/health/db
+
+### Registro de usuário
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "teste@exemplo.com",
+  "name": "Usuário Teste",
+  "password": "123456",
+  "passwordConfirm": "123456"
+}
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "teste@exemplo.com",
+  "password": "123456"
+}
+
+### Meu usuário autenticado
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{authToken}}
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{authToken}}
+
+### Listar produtos
+GET {{baseUrl}}/produtos
+
+### Buscar produto por ID
+GET {{baseUrl}}/produtos/1
+
+### Criar produto
+POST {{baseUrl}}/produtos
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "nome": "Camiseta Básica",
+  "categoria": "Camisetas",
+  "cor": "Preto",
+  "tamanho": "M",
+  "preco_custo": 25.5,
+  "preco_venda": 49.9,
+  "preco_unitario": 49.9,
+  "estoque_minimo": 10,
+  "ativo": 1
+}
+
+### Atualizar produto
+PUT {{baseUrl}}/produtos/1
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "nome": "Camiseta Básica Premium",
+  "categoria": "Camisetas",
+  "cor": "Preto",
+  "tamanho": "M",
+  "preco_custo": 28,
+  "preco_venda": 54.9,
+  "estoque_minimo": 8,
+  "ativo": 1
+}
+
+### Remover produto
+DELETE {{baseUrl}}/produtos/1
+Authorization: Bearer {{authToken}}
