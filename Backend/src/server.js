@@ -4,6 +4,7 @@ import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import db from './db/connection.js'
 import { authRoutes } from './routes/auth.js'
+import { clientesRoutes } from './routes/clientes.js'
 import { produtosRoutes } from './routes/produtos.js'
 import { getEnv } from './config/env.js'
 import crypto from 'crypto'
@@ -82,6 +83,7 @@ app.get('/health/db', async (req, reply) => {
 })
 
 await app.register(authRoutes)
+await app.register(clientesRoutes)
 await app.register(produtosRoutes)
 
 try {
