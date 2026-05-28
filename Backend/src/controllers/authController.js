@@ -1,4 +1,5 @@
 import * as authService from '../services/authService.js'
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '../middlewares/auth.js'
 
 const invalidCredentialsMessage = 'Credenciais inválidas'
 
@@ -26,6 +27,8 @@ export const register = async (req, reply) => {
 
     const user = await authService.register(email, name, password)
     const token = await signUserToken(reply, user)
+
+    reply.setCookie(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS)
 
     return reply.code(201).send({
       message: 'Usuário registrado com sucesso',
@@ -68,6 +71,8 @@ export const login = async (req, reply) => {
     const user = await authService.login(email, password)
     const token = await signUserToken(reply, user)
 
+    reply.setCookie(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS)
+
     return reply.code(200).send({
       message: 'Login realizado com sucesso',
       token,
@@ -98,6 +103,10 @@ export const login = async (req, reply) => {
 export const logout = async (req, reply) => {
   try {
     const result = await authService.logout(req.user.sub)
+
+    reply.clearCookie(AUTH_COOKIE_NAME, {
+      path: AUTH_COOKIE_OPTIONS.path,
+    })
 
     return reply.code(200).send(result)
   } catch (err) {

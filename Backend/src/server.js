@@ -1,12 +1,14 @@
 import 'dotenv/config'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import cookie from '@fastify/cookie'
 import jwt from '@fastify/jwt'
 import db from './db/connection.js'
 import { authRoutes } from './routes/auth.js'
 import { clientesRoutes } from './routes/clientes.js'
 import { produtosRoutes } from './routes/produtos.js'
 import { getEnv } from './config/env.js'
+import { authenticate, AUTH_COOKIE_NAME } from './middlewares/auth.js'
 import crypto from 'crypto'
 
 const env = getEnv()
@@ -61,17 +63,17 @@ await app.register(cors, {
   maxAge: 86400,
 })
 
+await app.register(cookie)
+
 await app.register(jwt, {
   secret: env.JWT_SECRET,
+  cookie: {
+    cookieName: AUTH_COOKIE_NAME,
+    signed: false,
+  },
 })
 
-app.decorate('authenticate', async (req, reply) => {
-  try {
-    await req.jwtVerify()
-  } catch {
-    reply.code(401).send({ error: 'Unauthorized', message: 'Token inválido ou ausente.' })
-  }
-})
+app.decorate('authenticate', authenticate)
 
 app.get('/health/db', async (req, reply) => {
   try {

@@ -35,11 +35,11 @@ export async function authRoutes(app) {
     return login(req, reply)
   })
 
-  app.post('/auth/logout', { onRequest: [app.authenticate] }, async (req, reply) => {
+  app.post('/auth/logout', { preHandler: [app.authenticate] }, async (req, reply) => {
     return logout(req, reply)
   })
 
-  app.get('/auth/me', { onRequest: [app.authenticate] }, async (req, reply) => {
+  app.get('/auth/me', { preHandler: [app.authenticate] }, async (req, reply) => {
     return me(req, reply)
   })
 }
