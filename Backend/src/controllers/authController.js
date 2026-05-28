@@ -32,7 +32,6 @@ export const register = async (req, reply) => {
 
     return reply.code(201).send({
       message: 'Usuário registrado com sucesso',
-      token,
       user: {
         id: user.id,
         email: user.email,
@@ -75,7 +74,6 @@ export const login = async (req, reply) => {
 
     return reply.code(200).send({
       message: 'Login realizado com sucesso',
-      token,
       user: {
         id: user.id,
         email: user.email,
