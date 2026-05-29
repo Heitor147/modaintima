@@ -1,8 +1,15 @@
+import {
+  listar,
+  buscarPorId,
+  criar,
+  atualizar,
+  inativar,
+} from '../controllers/clientesController.js'
+
 export async function clientesRoutes(app) {
-  app.get('/clientes', async (req, reply) => {
-    return reply.code(501).send({
-      error: 'Not Implemented',
-      message: 'Módulo de clientes ainda não implementado.',
-    })
-  })
+  app.get('/clientes', listar)
+  app.get('/clientes/:id', buscarPorId)
+  app.post('/clientes', { onRequest: [app.authenticate] }, criar)
+  app.put('/clientes/:id', { onRequest: [app.authenticate] }, atualizar)
+  app.delete('/clientes/:id', { onRequest: [app.authenticate] }, inativar)
 }
