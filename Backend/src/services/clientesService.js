@@ -10,11 +10,51 @@ const parseClientId = (value) => {
 
 const normalizeClientPayload = (payload = {}) => ({
   nome: payload.nome,
+  cpf: payload.cpf ?? null,
   telefone: payload.telefone ?? null,
   email: payload.email ?? null,
   endereco: payload.endereco ?? null,
   ativo: typeof payload.ativo === 'undefined' ? 1 : payload.ativo,
 })
+
+const buildDuplicateFieldError = (field) => {
+  const error = new Error(
+    field === 'cpf'
+      ? 'Já existe um cliente cadastrado com este CPF.'
+      : field === 'telefone'
+        ? 'Já existe um cliente cadastrado com este telefone.'
+        : 'Já existe um cliente cadastrado com este e-mail.'
+  )
+  error.statusCode = 400
+  error.duplicateField = field
+  return error
+}
+
+const checkDuplicateClientData = async (payload, excludeId = null) => {
+  if (payload.cpf) {
+    const duplicateByCpf = await clientesRepository.findByCpf(payload.cpf, excludeId)
+
+    if (duplicateByCpf) {
+      throw buildDuplicateFieldError('cpf')
+    }
+  }
+
+  if (payload.email) {
+    const duplicateByEmail = await clientesRepository.findByEmail(payload.email, excludeId)
+
+    if (duplicateByEmail) {
+      throw buildDuplicateFieldError('email')
+    }
+  }
+
+  if (payload.telefone) {
+    const duplicateByTelefone = await clientesRepository.findByTelefone(payload.telefone, excludeId)
+
+    if (duplicateByTelefone) {
+      throw buildDuplicateFieldError('telefone')
+    }
+  }
+}
 
 export const listar = async () => {
   return clientesRepository.findAll()
@@ -49,6 +89,18 @@ export const criar = async (payload) => {
     throw error
   }
 
+  if (!normalizedPayload.cpf) {
+    const error = new Error('CPF do cliente é obrigatório')
+    error.statusCode = 400
+    throw error
+  }
+
+  if (normalizedPayload.cpf && !String(normalizedPayload.cpf).trim()) {
+    normalizedPayload.cpf = null
+  }
+
+  await checkDuplicateClientData(normalizedPayload)
+
   const clienteId = await clientesRepository.create(normalizedPayload)
   return clientesRepository.findById(clienteId)
 }
@@ -74,6 +126,8 @@ export const atualizar = async (idValue, payload) => {
     ...clienteAtual,
     ...payload,
   })
+
+  await checkDuplicateClientData(normalizedPayload, id)
 
   await clientesRepository.update(id, normalizedPayload)
 

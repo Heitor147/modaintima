@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:3000
-@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjQsImVtYWlsIjoidGVzdGVAZXhlbXBsby5jb20iLCJwZXJmaWwiOiJ1c3VhcmlvIiwiaWF0IjoxNzc4ODUwMTYyLCJleHAiOjE3Nzg5MzY1NjJ9.yHFYAHTjiRqMivAJK2x2hVxgPV-1Cwuovll2_POqf7s
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjE0LCJlbWFpbCI6InRlc3RlQGV4ZW1wbG8uY29tIiwicGVyZmlsIjoidXN1YXJpbyIsImlhdCI6MTc4MDA5MTQ1NSwiZXhwIjoxNzgwMTc3ODU1fQ.NSqlJy-7E6cLNhsLkDKzD9H-mn8SWe8pMHXFrwMsito
 
 ### Health check do banco
 GET {{baseUrl}}/health/db
@@ -73,4 +73,40 @@ Authorization: Bearer {{authToken}}
 
 ### Remover produto
 DELETE {{baseUrl}}/produtos/1
+Authorization: Bearer {{authToken}}
+
+### Listar clientes
+GET {{baseUrl}}/clientes
+
+### Buscar cliente por ID
+GET {{baseUrl}}/clientes/1
+
+### Criar cliente
+POST {{baseUrl}}/clientes
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "nome": "João Silva",
+  "cpf": "123.456.789-00",
+  "telefone": "(11) 98765-4321",
+  "email": "joao.silva@exemplo.com",
+  "endereco": "Rua Teste, 123"
+}
+
+### Atualizar cliente
+PUT {{baseUrl}}/clientes/1
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "nome": "João Silva Atualizado",
+  "cpf": "123.456.789-00",
+  "telefone": "(11) 98888-7777",
+  "email": "joao.silva@exemplo.com",
+  "endereco": "Rua Atualizada, 456"
+}
+
+### Inativar cliente
+DELETE {{baseUrl}}/clientes/1
 Authorization: Bearer {{authToken}}
