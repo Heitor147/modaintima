@@ -1,7 +1,7 @@
 # Documento de Requisitos — Sistema de Gestão de Moda Íntima
 
 > **Status:** Documento de requisitos funcionais e não-funcionais  
-**Última atualização:** 2026-05-28  
+> **Última atualização:** 2026-05-13  
 > **Versão:** 1.0
 
 ## 1. Visão Geral
@@ -28,9 +28,6 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 
 ---
 
-**Observação:** O módulo de `produtos` possui CRUD básico implementado no backend (`GET /produtos`, `GET /produtos/:id`, `POST /produtos`, `PUT /produtos/:id`, `DELETE /produtos/:id` que realiza inativação). Com isso, parte dos requisitos relacionados a produtos estão implementados: **RF01 (Cadastro de produtos)** e **RF05 (Inativação de produtos)**. Requisitos de controle de estoque (RF02–RF04) permanecem planejados.
-
-
 ### 2.2 Estoque ⏳ **PLANEJADO**
 
 **RF01** — Cadastrar produtos com nome, categoria, cor, tamanho, preço de custo e preço de venda.  
@@ -42,6 +39,8 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 **Prioridade:** Alta  
 **Estimativa:** ~5 dias  
 **Status:** ⏳ Não iniciado
+
+**Observação:** O backend já possui CRUD de produtos (endpoints `/produtos`) implementado; as funcionalidades de movimentação de estoque (entradas/saídas), alertas e relatórios continuam em planejamento.
 
 ---
 
@@ -59,16 +58,13 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 
 ---
 
-### 2.4 Clientes (CRM) ⏳ **PLANEJADO**
+### 2.4 Clientes (CRM) ✅ **IMPLEMENTADO (CRUD básico)**
 
-**RF11** — Cadastrar clientes com nome, telefone, e-mail e endereço.  
-**RF12** — Consultar histórico de pedidos por cliente.  
-**RF13** — Registrar observações sobre o cliente (ex: preferências, restrições).  
-**RF14** — Inativar clientes sem excluí-los do histórico.
+**RF11–RF14** — Operações CRUD básicas implementadas: cadastro, consulta (lista e por id), atualização e inativação de clientes via endpoints `/clientes` (algumas operações protegidas por autenticação).
 
 **Prioridade:** Alta  
-**Estimativa:** ~3 dias  
-**Status:** ⏳ Não iniciado
+**Estimativa (restante):** ~1–2 dias para integrar histórico de pedidos  
+**Status:** ✅ Implementado (funcionalidades básicas)
 
 ---
 
@@ -158,9 +154,9 @@ Sistema web de uso interno para gestão operacional de uma microempresa de moda 
 | Fase | Módulo        | RF Implementados | Estimativa | Status   |
 |------|---------------|------------------|------------|----------|
 | 1    | Auth          | RF00.1–RF00.4    | ✅ Completo | ✅ Done  |
-| 2    | Produtos      | RF01, RF05 implementados; RF02–RF04 planejados | ~5 dias    | ⏳ Parcial |
+| 2    | Produtos      | RF01–RF05        | ~5 dias    | ⏳ Parcial (CRUD implementado) |
 | 3    | Estoque       | RF01–RF05        | ~5 dias    | ⏳ To-do |
-| 4    | Clientes      | RF11–RF14        | ~3 dias    | ⏳ To-do |
+| 4    | Clientes      | RF11–RF14        | ~3 dias    | ✅ Parcial (CRUD básico) |
 | 5    | Pedidos       | RF06–RF10        | ~8 dias    | ⏳ To-do |
 | 6    | Produção      | RF15–RF18        | ~5 dias    | ⏳ To-do |
 | 7    | Financeiro    | RF19–RF22        | ~5 dias    | ⏳ To-do |

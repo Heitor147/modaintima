@@ -2,9 +2,9 @@
 
 > **Status:** Snapshot de maio/2026  
 > **Versão:** 1.0  
-> **Última atualização:** 2026-05-28
 >
-> **Progresso geral:** ✅ Autenticação e Produtos implementados | ⏳ Módulos operacionais em planejamento
+> **Progresso geral:** ✅ Autenticação, Produtos e Clientes implementados | ⏳ Outros módulos em planejamento
+> **Última atualização:** 2026-05-30
 
 ---
 
@@ -106,28 +106,6 @@ Backend/src/
 - Proteção de rotas: middleware Fastify JWT
 - Validação: JSON Schema no Fastify
 
-### ✅ Implementado: Módulo de Produtos
-
-**Endpoints:**
-```
-GET    /produtos               (público)  - Listar produtos
-GET    /produtos/:id           (público)  - Obter produto por ID
-POST   /produtos               (protegido) - Criar produto
-PUT    /produtos/:id           (protegido) - Atualizar produto
-DELETE /produtos/:id           (protegido) - Inativar produto
-```
-
-**Estrutura:**
-```
-Backend/src/
-├── controllers/produtosController.js     (HTTP + resposta padronizada)
-├── services/produtosService.js           (validação e regras básicas)
-├── repositories/produtosRepository.js    (SQL puro)
-└── routes/produtos.js                    (wiring de rotas)
-```
-
-**Observações:** O módulo de produtos implementa CRUD básico e inativação via campo `ativo`. Funcionalidades de controle de estoque (entradas/saídas, saldo, alertas) permanecem planejadas.
-
 ### 3.2 ⏳ Planejado: Módulos Operacionais
 
 Os seguintes módulos **ainda não foram implementados**:
@@ -138,6 +116,8 @@ Os seguintes módulos **ainda não foram implementados**:
 - RF03: Consulta de saldo atual
 - RF04: Alerta de estoque mínimo
 - RF05: Inativação de produtos
+
+**Observação:** O CRUD de produtos (endpoints `/produtos`) já está implementado no backend; contudo, as funcionalidades de movimentação de estoque, alertas e relatórios permanecem em planejamento.
 
 #### Pedidos / Vendas
 - RF06: Criação de pedidos vinculados a cliente
@@ -151,6 +131,8 @@ Os seguintes módulos **ainda não foram implementados**:
 - RF12: Histórico de pedidos por cliente
 - RF13: Observações sobre cliente
 - RF14: Inativação de cliente
+
+**Observação:** O módulo de `Clientes` está parcialmente implementado: operações CRUD básicas (listar, buscar por id, criar, atualizar, inativar) estão disponíveis via endpoints `/clientes`.
 
 #### Produção / Costura
 - RF15: Criar ordens de produção vinculadas a pedidos
@@ -193,9 +175,9 @@ Backend/
 │   │
 │   ├── controllers/                    # HTTP + validação de input
 │   │   ├── authController.js           # ✅ Autenticação
-│   │   ├── produtosController.js       # ✅ Implementado
+│   │   ├── produtosController.js       # ✅ Implementado (CRUD básico)
 │   │   ├── estoqueController.js        # ⏳ A implementar
-│   │   ├── clientesController.js       # ⏳ A implementar
+│   │   ├── clientesController.js       # ✅ Implementado (CRUD básico)
 │   │   ├── pedidosController.js        # ⏳ A implementar
 │   │   ├── producaoController.js       # ⏳ A implementar
 │   │   └── financeiroController.js     # ⏳ A implementar
@@ -203,27 +185,27 @@ Backend/
 │   ├── services/                       # Business logic + validações
 │   │   ├── authService.js              # ✅ Autenticação
 │   │   ├── authHelper.js               # ✅ Funções auxiliares
-│   │   ├── produtosService.js          # ✅ Implementado
+│   │   ├── produtosService.js          # ✅ Implementado (CRUD básico)
 │   │   ├── estoqueService.js           # ⏳ A implementar
-│   │   ├── clientesService.js          # ⏳ A implementar
+│   │   ├── clientesService.js          # ✅ Implementado (CRUD básico)
 │   │   ├── pedidosService.js           # ⏳ A implementar
 │   │   ├── producaoService.js          # ⏳ A implementar
 │   │   └── financeiroService.js        # ⏳ A implementar
 │   │
 │   ├── repositories/                   # SQL puro (sem lógica)
 │   │   ├── usuariosRepository.js       # ✅ Usuários
-│   │   ├── produtosRepository.js       # ✅ Implementado
+│   │   ├── produtosRepository.js       # ✅ Implementado (CRUD básico)
 │   │   ├── estoqueRepository.js        # ⏳ A implementar
-│   │   ├── clientesRepository.js       # ⏳ A implementar
+│   │   ├── clientesRepository.js       # ✅ Implementado (CRUD básico)
 │   │   ├── pedidosRepository.js        # ⏳ A implementar
 │   │   ├── producaoRepository.js       # ⏳ A implementar
 │   │   └── financeiroRepository.js     # ⏳ A implementar
 │   │
 │   ├── routes/                         # Wiring apenas (sem business logic)
 │   │   ├── auth.js                     # ✅ Autenticação
-│   │   ├── produtos.js                 # ✅ Implementado
+│   │   ├── produtos.js                 # ✅ Implementado (rotas CRUD)
 │   │   ├── estoque.js                  # ⏳ A implementar
-│   │   ├── clientes.js                 # ⏳ A implementar
+│   │   ├── clientes.js                 # ✅ Implementado (rotas CRUD)
 │   │   ├── pedidos.js                  # ⏳ A implementar
 │   │   ├── producao.js                 # ⏳ A implementar
 │   │   └── financeiro.js               # ⏳ A implementar
@@ -311,7 +293,7 @@ Frontend/
 
 ### 5.2 Tabelas Planejadas
 
-#### `produtos` ✅
+#### `produtos` ⏳
 | Campo          | Tipo                | Atributos     |
 |----------------|---------------------|---------------|
 | id             | INT                 | PK, AI        |
