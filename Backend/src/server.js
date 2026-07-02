@@ -9,6 +9,7 @@ import { clientesRoutes } from './features/clientes/clientes.routes.js'
 import { produtosRoutes } from './features/produtos/produtos.routes.js'
 import { getEnv } from './config/env.js'
 import { authenticate, AUTH_COOKIE_NAME } from './core/middlewares/auth.js'
+import { AppError } from './core/errors/app-error.js'
 import crypto from 'crypto'
 
 const env = getEnv()
@@ -39,20 +40,35 @@ app.setErrorHandler((error, req, reply) => {
   const statusCode = error.statusCode || 500
 
   if (error.validation) {
+    const validationDetails = error.validation.map((item) => ({
+      field: item?.instancePath ? item.instancePath.replace(/^\//, '') : 'payload',
+      message: item?.message || 'Campo inválido',
+    }))
+
     return reply.code(400).send({
       error: 'Bad Request',
-      message: 'Payload inválido',
-      details: error.validation,
+      message: validationDetails.length === 1 ? validationDetails[0].message : 'Um ou mais campos estão inválidos',
+      details: validationDetails,
     })
   }
 
   req.log.error(error)
 
-  return reply.code(statusCode).send({
-    error: statusCode >= 500 ? 'Internal Server Error' : error.name || 'Error',
-    message: statusCode >= 500 ? 'Erro interno' : error.message,
-    details: null,
-  })
+  const shouldExposeMessage = error instanceof AppError || statusCode < 500 || error.expose === true
+
+  const response = {
+    error:
+      error.error ||
+      error.code ||
+      (statusCode >= 500 ? 'Internal Server Error' : error.name || 'Error'),
+    message: shouldExposeMessage ? error.message : 'Erro interno',
+  }
+
+  if (error.details) {
+    response.details = error.details
+  }
+
+  return reply.code(statusCode).send(response)
 })
 
 await app.register(cors, {
@@ -76,12 +92,8 @@ await app.register(jwt, {
 app.decorate('authenticate', authenticate)
 
 app.get('/health/db', async (req, reply) => {
-  try {
-    const [rows] = await req.server.db.query('SELECT 1 AS ok')
-    reply.code(200).send({ db: 'ok', rows })
-  } catch (err) {
-    reply.code(500).send({ db: 'error', message: err.message })
-  }
+  const [rows] = await req.server.db.query('SELECT 1 AS ok')
+  return reply.code(200).send({ db: 'ok', rows })
 })
 
 await app.register(authRoutes)

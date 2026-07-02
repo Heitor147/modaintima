@@ -1,7 +1,6 @@
 import * as authService from './auth.service.js'
 import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '../../core/middlewares/auth.js'
-
-const invalidCredentialsMessage = 'Credenciais inválidas'
+import { AppError } from '../../core/errors/app-error.js'
 
 const signUserToken = (reply, user) => {
   return reply.jwtSign(
@@ -15,123 +14,65 @@ const signUserToken = (reply, user) => {
 }
 
 export const register = async (req, reply) => {
-  try {
-    const { email, name, password, passwordConfirm } = req.body
+  const { email, name, password, passwordConfirm } = req.body
 
-    if (password !== passwordConfirm) {
-      return reply.code(400).send({
-        error: 'Bad Request',
-        message: 'As senhas não conferem',
-      })
-    }
-
-    const user = await authService.register(email, name, password)
-    const token = await signUserToken(reply, user)
-
-    reply.setCookie(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS)
-
-    return reply.code(201).send({
-      message: 'Usuário registrado com sucesso',
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.nome,
-        perfil: user.perfil,
-      },
-    })
-  } catch (err) {
-    req.log.error(err)
-
-    if (err.message.includes('Email já cadastrado')) {
-      return reply.code(409).send({
-        error: 'Conflict',
-        message: err.message,
-      })
-    }
-
-    if (err.message.includes('Senha deve ter')) {
-      return reply.code(400).send({
-        error: 'Bad Request',
-        message: err.message,
-      })
-    }
-
-    return reply.code(500).send({
-      error: 'Internal Server Error',
-      message: 'Erro interno',
-    })
+  if (password !== passwordConfirm) {
+    throw new AppError('As senhas não conferem', 400)
   }
+
+  const user = await authService.register(email, name, password)
+  const token = await signUserToken(reply, user)
+
+  reply.setCookie(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS)
+
+  return reply.code(201).send({
+    message: 'Usuário registrado com sucesso',
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.nome,
+      perfil: user.perfil,
+    },
+  })
 }
 
 export const login = async (req, reply) => {
-  try {
-    const { email, password } = req.body
+  const { email, password } = req.body
 
-    const user = await authService.login(email, password)
-    const token = await signUserToken(reply, user)
+  const user = await authService.login(email, password)
+  const token = await signUserToken(reply, user)
 
-    reply.setCookie(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS)
+  reply.setCookie(AUTH_COOKIE_NAME, token, AUTH_COOKIE_OPTIONS)
 
-    return reply.code(200).send({
-      message: 'Login realizado com sucesso',
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.nome,
-        perfil: user.perfil,
-      },
-    })
-  } catch (err) {
-    req.log.error(err)
-
-    if (err.message.includes(invalidCredentialsMessage)) {
-      return reply.code(401).send({
-        error: 'Unauthorized',
-        message: invalidCredentialsMessage,
-      })
-    }
-
-    return reply.code(500).send({
-      error: 'Internal Server Error',
-      message: 'Erro interno',
-    })
-  }
+  return reply.code(200).send({
+    message: 'Login realizado com sucesso',
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.nome,
+      perfil: user.perfil,
+    },
+  })
 }
 
 export const logout = async (req, reply) => {
-  try {
-    const result = await authService.logout(req.user.sub)
+  const result = await authService.logout(req.user.sub)
 
-    reply.clearCookie(AUTH_COOKIE_NAME, {
-      path: AUTH_COOKIE_OPTIONS.path,
-    })
+  reply.clearCookie(AUTH_COOKIE_NAME, {
+    path: AUTH_COOKIE_OPTIONS.path,
+  })
 
-    return reply.code(200).send(result)
-  } catch (err) {
-    req.log.error(err)
-    return reply.code(500).send({
-      error: 'Internal Server Error',
-      message: 'Erro interno',
-    })
-  }
+  return reply.code(200).send(result)
 }
 
 export const me = async (req, reply) => {
-  try {
-    const currentUser = await authService.getUserById(req.user.sub)
+  const currentUser = await authService.getUserById(req.user.sub)
 
-    return reply.code(200).send({
-      user: {
-        sub: req.user.sub,
-        email: currentUser.email || req.user.email,
-        perfil: currentUser.perfil || req.user.perfil || 'usuario',
-      },
-    })
-  } catch (err) {
-    req.log.error(err)
-    return reply.code(500).send({
-      error: 'Internal Server Error',
-      message: 'Erro interno',
-    })
-  }
+  return reply.code(200).send({
+    user: {
+      sub: req.user.sub,
+      email: currentUser.email || req.user.email,
+      perfil: currentUser.perfil || req.user.perfil || 'usuario',
+    },
+  })
 }

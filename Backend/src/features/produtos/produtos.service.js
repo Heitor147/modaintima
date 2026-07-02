@@ -1,4 +1,5 @@
 import * as produtosRepository from './produtos.repository.js'
+import { AppError } from '../../core/errors/app-error.js'
 
 const invalidIdMessage = 'ID do produto inválido'
 const notFoundMessage = 'Produto não encontrado'
@@ -28,17 +29,13 @@ export const buscarPorId = async (idValue) => {
   const id = parseProductId(idValue)
 
   if (!id) {
-    const error = new Error(invalidIdMessage)
-    error.statusCode = 400
-    throw error
+    throw new AppError(invalidIdMessage, 400)
   }
 
   const produto = await produtosRepository.findById(id)
 
   if (!produto) {
-    const error = new Error(notFoundMessage)
-    error.statusCode = 404
-    throw error
+    throw new AppError(notFoundMessage, 404)
   }
 
   return produto
@@ -48,9 +45,7 @@ export const criar = async (payload) => {
   const normalizedPayload = normalizeProductPayload(payload)
 
   if (!normalizedPayload.nome) {
-    const error = new Error('Nome do produto é obrigatório')
-    error.statusCode = 400
-    throw error
+    throw new AppError('Nome do produto é obrigatório', 400)
   }
 
   const produtoId = await produtosRepository.create(normalizedPayload)
@@ -61,17 +56,13 @@ export const atualizar = async (idValue, payload) => {
   const id = parseProductId(idValue)
 
   if (!id) {
-    const error = new Error(invalidIdMessage)
-    error.statusCode = 400
-    throw error
+    throw new AppError(invalidIdMessage, 400)
   }
 
   const produtoAtual = await produtosRepository.findById(id)
 
   if (!produtoAtual) {
-    const error = new Error(notFoundMessage)
-    error.statusCode = 404
-    throw error
+    throw new AppError(notFoundMessage, 404)
   }
 
   const normalizedPayload = normalizeProductPayload({
@@ -88,17 +79,13 @@ export const remover = async (idValue) => {
   const id = parseProductId(idValue)
 
   if (!id) {
-    const error = new Error(invalidIdMessage)
-    error.statusCode = 400
-    throw error
+    throw new AppError(invalidIdMessage, 400)
   }
 
   const produto = await produtosRepository.findById(id)
 
   if (!produto) {
-    const error = new Error(notFoundMessage)
-    error.statusCode = 404
-    throw error
+    throw new AppError(notFoundMessage, 404)
   }
 
   await produtosRepository.remove(id)

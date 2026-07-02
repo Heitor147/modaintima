@@ -1,4 +1,5 @@
 import db from '../../db/connection.js'
+import { AppError } from '../../core/errors/app-error.js'
 
 const BAD_FIELD_ERROR = 'ER_BAD_FIELD_ERROR'
 const DUPLICATE_ENTRY_ERROR = 'ER_DUP_ENTRY'
@@ -53,17 +54,17 @@ const mapDuplicateEntryError = (err) => {
   const message = String(err?.sqlMessage || err?.message || '')
 
   if (message.includes('cpf')) {
-    const duplicateError = new Error('Já existe um cliente cadastrado com este CPF.')
-    duplicateError.statusCode = 400
-    duplicateError.duplicateField = 'cpf'
-    return duplicateError
+    return new AppError('Já existe um cliente cadastrado com este CPF.', 400, {
+      code: 'DUPLICATE_CLIENT_DATA',
+      details: { field: 'cpf' },
+    })
   }
 
   if (message.includes('email')) {
-    const duplicateError = new Error('Já existe um cliente cadastrado com este e-mail.')
-    duplicateError.statusCode = 400
-    duplicateError.duplicateField = 'email'
-    return duplicateError
+    return new AppError('Já existe um cliente cadastrado com este e-mail.', 400, {
+      code: 'DUPLICATE_CLIENT_DATA',
+      details: { field: 'email' },
+    })
   }
 
   return err

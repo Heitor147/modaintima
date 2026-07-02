@@ -1,4 +1,5 @@
 import * as clientesRepository from './clientes.repository.js'
+import { AppError } from '../../core/errors/app-error.js'
 
 const invalidIdMessage = 'ID do cliente inválido'
 const notFoundMessage = 'Cliente não encontrado'
@@ -18,16 +19,18 @@ const normalizeClientPayload = (payload = {}) => ({
 })
 
 const buildDuplicateFieldError = (field) => {
-  const error = new Error(
+  return new AppError(
     field === 'cpf'
       ? 'Já existe um cliente cadastrado com este CPF.'
       : field === 'telefone'
         ? 'Já existe um cliente cadastrado com este telefone.'
-        : 'Já existe um cliente cadastrado com este e-mail.'
+        : 'Já existe um cliente cadastrado com este e-mail.',
+    400,
+    {
+      code: 'DUPLICATE_CLIENT_DATA',
+      details: { field },
+    }
   )
-  error.statusCode = 400
-  error.duplicateField = field
-  return error
 }
 
 const checkDuplicateClientData = async (payload, excludeId = null) => {
@@ -64,17 +67,13 @@ export const buscarPorId = async (idValue) => {
   const id = parseClientId(idValue)
 
   if (!id) {
-    const error = new Error(invalidIdMessage)
-    error.statusCode = 400
-    throw error
+    throw new AppError(invalidIdMessage, 400)
   }
 
   const cliente = await clientesRepository.findById(id)
 
   if (!cliente) {
-    const error = new Error(notFoundMessage)
-    error.statusCode = 404
-    throw error
+    throw new AppError(notFoundMessage, 404)
   }
 
   return cliente
@@ -84,15 +83,11 @@ export const criar = async (payload) => {
   const normalizedPayload = normalizeClientPayload(payload)
 
   if (!normalizedPayload.nome) {
-    const error = new Error('Nome do cliente é obrigatório')
-    error.statusCode = 400
-    throw error
+    throw new AppError('Nome do cliente é obrigatório', 400)
   }
 
   if (!normalizedPayload.cpf) {
-    const error = new Error('CPF do cliente é obrigatório')
-    error.statusCode = 400
-    throw error
+    throw new AppError('CPF do cliente é obrigatório', 400)
   }
 
   if (normalizedPayload.cpf && !String(normalizedPayload.cpf).trim()) {
@@ -109,17 +104,13 @@ export const atualizar = async (idValue, payload) => {
   const id = parseClientId(idValue)
 
   if (!id) {
-    const error = new Error(invalidIdMessage)
-    error.statusCode = 400
-    throw error
+    throw new AppError(invalidIdMessage, 400)
   }
 
   const clienteAtual = await clientesRepository.findById(id)
 
   if (!clienteAtual) {
-    const error = new Error(notFoundMessage)
-    error.statusCode = 404
-    throw error
+    throw new AppError(notFoundMessage, 404)
   }
 
   const normalizedPayload = normalizeClientPayload({
@@ -138,17 +129,13 @@ export const inativar = async (idValue) => {
   const id = parseClientId(idValue)
 
   if (!id) {
-    const error = new Error(invalidIdMessage)
-    error.statusCode = 400
-    throw error
+    throw new AppError(invalidIdMessage, 400)
   }
 
   const cliente = await clientesRepository.findById(id)
 
   if (!cliente) {
-    const error = new Error(notFoundMessage)
-    error.statusCode = 404
-    throw error
+    throw new AppError(notFoundMessage, 404)
   }
 
   await clientesRepository.inactivate(id)
