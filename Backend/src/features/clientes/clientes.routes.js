@@ -4,7 +4,7 @@ import {
   criar,
   atualizar,
   inativar,
-} from '../controllers/clientesController.js'
+} from './clientes.controller.js'
 
 export async function clientesRoutes(app) {
   const clienteSchema = {

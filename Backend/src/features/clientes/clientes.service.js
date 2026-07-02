@@ -1,4 +1,4 @@
-import * as clientesRepository from '../repositories/clientesRepository.js'
+import * as clientesRepository from './clientes.repository.js'
 
 const invalidIdMessage = 'ID do cliente inválido'
 const notFoundMessage = 'Cliente não encontrado'

@@ -1,4 +1,4 @@
-import * as produtosRepository from '../repositories/produtosRepository.js'
+import * as produtosRepository from './produtos.repository.js'
 
 const invalidIdMessage = 'ID do produto inválido'
 const notFoundMessage = 'Produto não encontrado'

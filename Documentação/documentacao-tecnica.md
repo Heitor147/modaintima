@@ -1,10 +1,10 @@
 # Documentação Técnica — Sistema de Gestão de Moda Íntima
 
-> **Status:** Snapshot de maio/2026  
+> **Status:** Snapshot de julho/2026  
 > **Versão:** 1.0  
 >
-> **Progresso geral:** ✅ Autenticação, Produtos e Clientes implementados | ⏳ Outros módulos em planejamento
-> **Última atualização:** 2026-05-30
+> **Progresso geral:** ✅ Autenticação, Produtos e Clientes implementados | ⏳ Estoque, Pedidos, Produção, Financeiro, Relatórios e Frontend em planejamento
+> **Última atualização:** 2026-07-01
 
 ---
 
@@ -12,12 +12,12 @@
 
 | Camada        | Tecnologia              | Status            |
 |---------------|-------------------------|-------------------|
-| Frontend      | React + Vite            | Setup básico       |
-| Backend       | Node.js + Fastify       | ✅ Produção       |
-| Comunicação   | Axios                   | ⏳ Próxima fase    |
+| Frontend      | React (pacote base)     | ⏳ Não iniciado     |
+| Backend       | Node.js + Fastify       | ✅ Em uso          |
+| Comunicação   | Axios                   | ⏳ Planejada        |
 | Banco de dados| MySQL                   | ✅ Conectado      |
 | ORM / Query   | mysql2 (queries brutas) | ✅ Em uso          |
-| Autenticação  | JWT (jsonwebtoken)      | ✅ Implementada   |
+| Autenticação  | JWT (@fastify/jwt)      | ✅ Implementada   |
 | Hash de senha | bcryptjs                | ✅ Em uso (salt 10)|
 
 ---
@@ -27,7 +27,7 @@
 ### 2.1 Visão Geral
 
 ```
-Cliente (React SPA)
+Cliente (Frontend planejado)
       │
       │ HTTP/JSON via Axios
       ▼
@@ -43,25 +43,27 @@ Fastify (API REST)
 MySQL (banco de dados)
 ```
 
-### 2.2 Padrão Arquitetural (MVC + Repository)
+### 2.2 Padrão Arquitetural (Vertical Slice)
+
+O backend passou a ser organizado por **feature**. Cada slice concentra as responsabilidades do seu módulo e reduz acoplamento entre áreas diferentes.
 
 Fluxo de cada requisição:
 
 ```
 Request HTTP
     ↓
-Routes/ (apenas wiring, sem lógica)
+Feature route
     ↓
-Controllers/ (validação de payload JSON, chamada para service, formatação de resposta)
+Feature controller
     ↓
-Services/ (regras de negócio, transações, validações)
+Feature service
     ↓
-Repositories/ (SQL puro, sem lógica)
+Feature repository
     ↓
 MySQL
 ```
 
-**Regra crítica:** Controllers **nunca** acessam SQL diretamente. Todo acesso ao banco passa por: `Service → Repository`
+**Regra crítica:** cada feature é dona do seu fluxo completo. Controllers não acessam SQL diretamente; o acesso sempre passa por `service → repository` dentro da própria feature.
 
 ### 2.3 Comunicação Backend ↔ Banco de Dados
 
@@ -71,7 +73,7 @@ MySQL
 
 ---
 
-## 3. Estado Atual da Implementação (maio/2026)
+## 3. Estado Atual da Implementação (julho/2026)
 
 ### 3.1 ✅ Implementado: Módulo de Autenticação
 
@@ -85,18 +87,17 @@ GET    /auth/me             (protegido)- Dados do usuário autenticado
 
 **Estrutura:**
 ```
-Backend/src/
-├── controllers/authController.js       (validação, chamadas à service)
-├── services/authService.js             (lógica de negócio)
-├── services/authHelper.js              (funções auxiliares)
-├── repositories/usuariosRepository.js  (SQL puro)
-└── routes/auth.js                      (wiring de rotas)
+Backend/src/features/auth/
+├── auth.routes.js                      (wiring de rotas)
+├── auth.controller.js                  (validação, chamadas à service)
+├── auth.service.js                     (lógica de negócio)
+└── auth.repository.js                  (SQL puro)
 ```
 
 **Fluxo de exemplo (register):**
-1. `POST /auth/register` → `authController.register()` (valida JSON)
-2. → `authService.register()` (hash de senha, cheque de email duplicado)
-3. → `usuariosRepository.create()` (insere no banco)
+1. `POST /auth/register` → `auth.controller.register()` (valida JSON)
+2. → `auth.service.register()` (hash de senha, cheque de email duplicado)
+3. → `auth.repository.create()` (insere no banco)
 4. → JWT gerado com expiração 24h
 5. → Retorna token + dados do usuário
 
@@ -106,52 +107,93 @@ Backend/src/
 - Proteção de rotas: middleware Fastify JWT
 - Validação: JSON Schema no Fastify
 
-### 3.2 ⏳ Planejado: Módulos Operacionais
+### 3.2 ✅ Implementado: Módulo de Produtos
 
-Os seguintes módulos **ainda não foram implementados**:
+**Endpoints:**
+```
+GET    /produtos          (público)    - Listagem de produtos
+GET    /produtos/:id      (público)    - Detalhe de produto
+POST   /produtos          (protegido)  - Criação
+PUT    /produtos/:id      (protegido)  - Atualização
+DELETE /produtos/:id      (protegido)  - Inativação (ativo=0)
+```
+
+**Estrutura:**
+```
+Backend/src/features/produtos/
+├── produtos.routes.js                  (wiring de rotas)
+├── produtos.controller.js              (HTTP + validação de input)
+├── produtos.service.js                 (lógica de negócio)
+└── produtos.repository.js              (SQL puro)
+```
+
+**Detalhes técnicos:**
+- Campos implementados: nome, categoria, cor, tamanho, preco_custo, preco_venda, preco_unitario, estoque_minimo e ativo
+- Exclusão lógica: DELETE marca `ativo = 0`
+- Validação: rotas protegidas usam `app.authenticate`
+- Repositório: operações de listar, buscar, criar, atualizar e inativar
+
+### 3.3 ✅ Implementado: Módulo de Clientes
+
+**Endpoints:**
+```
+GET    /clientes          (público)    - Listagem de clientes
+GET    /clientes/:id      (público)    - Detalhe de cliente
+POST   /clientes          (protegido)  - Criação
+PUT    /clientes/:id      (protegido)  - Atualização
+DELETE /clientes/:id      (protegido)  - Inativação (ativo=0)
+```
+
+**Estrutura:**
+```
+Backend/src/features/clientes/
+├── clientes.routes.js                  (wiring de rotas)
+├── clientes.controller.js              (HTTP + validação de input)
+├── clientes.service.js                 (lógica de negócio)
+└── clientes.repository.js              (SQL puro)
+```
+
+**Detalhes técnicos:**
+- Campos implementados: nome, cpf, telefone, email, endereco e ativo
+- CPF e email possuem tratamento de duplicidade no repositório
+- Exclusão lógica: DELETE marca `ativo = 0`
+- Validação: criação e atualização exigem `nome` e `cpf`
+
+### 3.4 ⏳ Planejado: Módulos Operacionais
+
+Os seguintes módulos ainda não foram implementados no código atual:
 
 #### Estoque
-- RF01: Cadastro de produtos (nome, categoria, cor, tamanho, preço custo/venda)
-- RF02: Registro de entradas/saídas
-- RF03: Consulta de saldo atual
-- RF04: Alerta de estoque mínimo
-- RF05: Inativação de produtos
-
-**Observação:** O CRUD de produtos (endpoints `/produtos`) já está implementado no backend; contudo, as funcionalidades de movimentação de estoque, alertas e relatórios permanecem em planejamento.
+- RF01: Registro de entradas/saídas
+- RF02: Consulta de saldo atual
+- RF03: Alerta de estoque mínimo
+- RF04: Ajustes manuais de inventário
 
 #### Pedidos / Vendas
-- RF06: Criação de pedidos vinculados a cliente
-- RF07: Múltiplos itens por pedido (produto + quantidade)
-- RF08: Ciclo de status (Aguardando → Em produção → Pronto → Entregue / Cancelado)
-- RF09: Forma e status de pagamento
-- RF10: Cancelamento com registro de motivo
-
-#### Clientes (CRM)
-- RF11: Cadastro (nome, telefone, email, endereço)
-- RF12: Histórico de pedidos por cliente
-- RF13: Observações sobre cliente
-- RF14: Inativação de cliente
-
-**Observação:** O módulo de `Clientes` está parcialmente implementado: operações CRUD básicas (listar, buscar por id, criar, atualizar, inativar) estão disponíveis via endpoints `/clientes`.
+- RF05: Criação de pedidos vinculados a cliente
+- RF06: Múltiplos itens por pedido (produto + quantidade)
+- RF07: Ciclo de status (Aguardando → Em produção → Pronto → Entregue / Cancelado)
+- RF08: Forma e status de pagamento
+- RF09: Cancelamento com registro de motivo
 
 #### Produção / Costura
-- RF15: Criar ordens de produção vinculadas a pedidos
-- RF16: Atribuir responsável e prazo
-- RF17: Acompanhar status (Pendente → Em andamento → Concluída)
-- RF18: Registro de data de conclusão real
+- RF10: Criar ordens de produção vinculadas a pedidos
+- RF11: Atribuir responsável e prazo
+- RF12: Acompanhar status (Pendente → Em andamento → Concluída)
+- RF13: Registro de data de conclusão real
 
 #### Financeiro
-- RF19: Receitas (automáticas ao fechar pedido) + despesas manuais
-- RF20: Categorização de despesas
-- RF21: Saldo do período (receitas − despesas)
-- RF22: Status de pagamento (Pendente / Pago / Atrasado)
+- RF14: Receitas automáticas ao fechar pedido + despesas manuais
+- RF15: Categorização de despesas
+- RF16: Saldo do período (receitas − despesas)
+- RF17: Status de pagamento (Pendente / Pago / Atrasado)
 
 #### Relatórios
-- RF23: Vendas por período
-- RF24: Produtos mais vendidos
-- RF25: Clientes com maior volume
-- RF26: Fluxo de caixa
-- RF27: Produção por status/responsável
+- RF18: Vendas por período
+- RF19: Produtos mais vendidos
+- RF20: Clientes com maior volume
+- RF21: Fluxo de caixa
+- RF22: Produção por status/responsável
 
 ---
 
@@ -161,6 +203,7 @@ Os seguintes módulos **ainda não foram implementados**:
 
 ```
 Backend/
+├── requests.http                       # ✅ Coleção de requisições manuais
 ├── sql/
 │   └── create_schema_and_seed.sql      # ✅ Schema do banco e dados iniciais
 │
@@ -173,47 +216,38 @@ Backend/
 │   ├── config/
 │   │   └── env.js                      # ✅ Validação de variáveis de ambiente
 │   │
-│   ├── controllers/                    # HTTP + validação de input
-│   │   ├── authController.js           # ✅ Autenticação
-│   │   ├── produtosController.js       # ✅ Implementado (CRUD básico)
-│   │   ├── estoqueController.js        # ⏳ A implementar
-│   │   ├── clientesController.js       # ✅ Implementado (CRUD básico)
-│   │   ├── pedidosController.js        # ⏳ A implementar
-│   │   ├── producaoController.js       # ⏳ A implementar
-│   │   └── financeiroController.js     # ⏳ A implementar
+│   ├── features/                       # Vertical slices por módulo
+│   │   ├── auth/
+│   │   │   ├── auth.routes.js          # ✅ Wiring do módulo
+│   │   │   ├── auth.controller.js      # ✅ HTTP + validação de input
+│   │   │   ├── auth.service.js         # ✅ Regras de negócio
+│   │   │   └── auth.repository.js      # ✅ SQL puro do módulo
+│   │   ├── clientes/
+│   │   │   ├── clientes.routes.js      # ✅ Wiring do módulo
+│   │   │   ├── clientes.controller.js  # ✅ HTTP + validação de input
+│   │   │   ├── clientes.service.js     # ✅ Regras de negócio
+│   │   │   └── clientes.repository.js  # ✅ SQL puro do módulo
+│   │   └── produtos/
+│   │       ├── produtos.routes.js      # ✅ Wiring do módulo
+│   │       ├── produtos.controller.js  # ✅ HTTP + validação de input
+│   │       ├── produtos.service.js     # ✅ Regras de negócio
+│   │       └── produtos.repository.js  # ✅ SQL puro do módulo
 │   │
-│   ├── services/                       # Business logic + validações
-│   │   ├── authService.js              # ✅ Autenticação
-│   │   ├── authHelper.js               # ✅ Funções auxiliares
-│   │   ├── produtosService.js          # ✅ Implementado (CRUD básico)
-│   │   ├── estoqueService.js           # ⏳ A implementar
-│   │   ├── clientesService.js          # ✅ Implementado (CRUD básico)
-│   │   ├── pedidosService.js           # ⏳ A implementar
-│   │   ├── producaoService.js          # ⏳ A implementar
-│   │   └── financeiroService.js        # ⏳ A implementar
+│   ├── middlewares/
+│   │   └── auth.js                     # ✅ JWT cookie settings + authenticate hook
 │   │
-│   ├── repositories/                   # SQL puro (sem lógica)
-│   │   ├── usuariosRepository.js       # ✅ Usuários
-│   │   ├── produtosRepository.js       # ✅ Implementado (CRUD básico)
-│   │   ├── estoqueRepository.js        # ⏳ A implementar
-│   │   ├── clientesRepository.js       # ✅ Implementado (CRUD básico)
-│   │   ├── pedidosRepository.js        # ⏳ A implementar
-│   │   ├── producaoRepository.js       # ⏳ A implementar
-│   │   └── financeiroRepository.js     # ⏳ A implementar
+│   ├── db/
+│   │   ├── connection.js               # ✅ Pool de conexão MySQL
+│   │   ├── transaction.js              # ✅ Utilitários de transação
+│   │   └── test-connection.js          # ✅ Script de teste de conexão
 │   │
-│   ├── routes/                         # Wiring apenas (sem business logic)
-│   │   ├── auth.js                     # ✅ Autenticação
-│   │   ├── produtos.js                 # ✅ Implementado (rotas CRUD)
-│   │   ├── estoque.js                  # ⏳ A implementar
-│   │   ├── clientes.js                 # ✅ Implementado (rotas CRUD)
-│   │   ├── pedidos.js                  # ⏳ A implementar
-│   │   ├── producao.js                 # ⏳ A implementar
-│   │   └── financeiro.js               # ⏳ A implementar
+│   ├── scripts/
+│   │   └── test-login.js               # ✅ Script auxiliar de autenticação
 │   │
-│   └── db/
-│       ├── connection.js               # ✅ Pool de conexão MySQL
-│       ├── transaction.js              # ✅ Utilitários de transação
-│       └── test-connection.js          # ✅ Script de teste de conexão
+│   ├── routes/                         # Legado/compatibilidade durante migração
+│   ├── controllers/                    # Legado/compatibilidade durante migração
+│   ├── services/                       # Legado/compatibilidade durante migração
+│   └── repositories/                   # Legado/compatibilidade durante migração
 │
 ├── test/
 │   └── integration_tests.sh            # ⏳ Testes de integração
@@ -225,52 +259,10 @@ Backend/
 
 ```
 Frontend/
-├── package.json                        # ⏳ Setup (React, Vite)
-├── vite.config.js                      # ⏳ Configuração Vite
-├── .env                                # ⏳ API URL, etc
-│
-└── src/
-    ├── main.jsx                        # ⏳ Entry point
-    ├── App.jsx                         # ⏳ Root component
-    │
-    ├── pages/                          # Uma página por módulo
-    │   ├── Login.jsx                   # ⏳ Tela de login
-    │   ├── Dashboard.jsx               # ⏳ Tela inicial
-    │   ├── Estoque/
-    │   │   ├── ListaProdutos.jsx       # ⏳ Listagem
-    │   │   ├── FormProduto.jsx         # ⏳ Cadastro/edição
-    │   │   └── MovimentacoesEstoque.jsx
-    │   ├── Pedidos/
-    │   ├── Clientes/
-    │   ├── Producao/
-    │   ├── Financeiro/
-    │   └── Relatorios/
-    │
-    ├── components/                     # Componentes reutilizáveis
-    │   ├── Header.jsx                  # ⏳ Cabeçalho
-    │   ├── Sidebar.jsx                 # ⏳ Menu lateral
-    │   ├── Form/
-    │   ├── Table/
-    │   └── Modal/
-    │
-    ├── services/                       # API clients
-    │   ├── api.js                      # ⏳ Instância Axios
-    │   ├── authService.js              # ⏳ Chamadas auth
-    │   ├── produtosService.js          # ⏳ Chamadas produtos
-    │   └── ...
-    │
-    ├── hooks/                          # Custom hooks
-    │   ├── useAuth.js                  # ⏳ Autenticação
-    │   ├── useFetch.js                 # ⏳ Fetch genérico
-    │   └── ...
-    │
-    ├── context/                        # Context API (estado global)
-    │   └── AuthContext.jsx             # ⏳ Contexto de autenticação
-    │
-    └── styles/                         # Estilos
-        ├── index.css                   # ⏳ Estilos globais
-        └── variables.css               # ⏳ Variáveis (cores, espaçamentos)
+└── package.json                        # ✅ Pacote base React
 ```
+
+Ainda não há `src/`, Vite, variáveis de ambiente ou scripts de execução no frontend.
 
 ---
 
@@ -279,55 +271,54 @@ Frontend/
 ### 5.1 Tabelas Implementadas
 
 #### `usuarios` ✅
-| Campo       | Tipo         | Atributos                |
-|-------------|--------------|--------------------------|
-| id          | INT          | PK, AUTO_INCREMENT       |
-| email       | VARCHAR(150) | UNIQUE, NOT NULL         |
-| nome        | VARCHAR(100) | NOT NULL                 |
-| senha_hash  | VARCHAR(255) | NOT NULL                 |
-| perfil      | VARCHAR(50)  | DEFAULT 'usuario'        |
-| ativo       | TINYINT(1)   | DEFAULT 1                |
-| criado_em   | DATETIME     | DEFAULT CURRENT_TIMESTAMP|
+| Campo      | Tipo         | Atributos                 |
+|------------|--------------|---------------------------|
+| id         | INT          | PK, AUTO_INCREMENT        |
+| email      | VARCHAR(255) | UNIQUE, NOT NULL          |
+| nome       | VARCHAR(255) | NOT NULL                  |
+| senha_hash | VARCHAR(255) | NOT NULL                  |
+| created_at | TIMESTAMP    | DEFAULT CURRENT_TIMESTAMP |
 
----
+> Observação: o código de autenticação ainda aceita `perfil` e `ativo` quando essas colunas existem, mas elas não fazem parte do schema atual.
+
+#### `produtos` ✅
+| Campo          | Tipo          | Atributos                |
+|----------------|--------------|--------------------------|
+| id             | INT          | PK, AUTO_INCREMENT       |
+| nome           | VARCHAR(255) | NOT NULL                 |
+| categoria      | VARCHAR(255) | NULL                     |
+| cor            | VARCHAR(100) | NULL                     |
+| tamanho        | VARCHAR(50)  | NULL                     |
+| preco_custo    | DECIMAL(10,2)| NULL                     |
+| preco_venda    | DECIMAL(10,2)| NULL                     |
+| preco_unitario | DECIMAL(10,2)| NULL                     |
+| estoque_minimo | INT          | NOT NULL DEFAULT 0       |
+| ativo          | TINYINT(1)   | NOT NULL DEFAULT 1       |
+| criado_em      | TIMESTAMP    | DEFAULT CURRENT_TIMESTAMP |
+
+#### `clientes` ✅
+| Campo      | Tipo          | Atributos                |
+|------------|--------------|--------------------------|
+| id         | INT          | PK, AUTO_INCREMENT       |
+| nome       | VARCHAR(255) | NOT NULL                 |
+| cpf        | VARCHAR(14)  | NULL, UNIQUE             |
+| telefone   | VARCHAR(50)  | NULL                     |
+| email      | VARCHAR(255) | NULL, UNIQUE             |
+| endereco   | VARCHAR(500) | NULL                     |
+| ativo      | TINYINT(1)   | NOT NULL DEFAULT 1       |
+| criado_em  | TIMESTAMP    | DEFAULT CURRENT_TIMESTAMP |
 
 ### 5.2 Tabelas Planejadas
-
-#### `produtos` ⏳
-| Campo          | Tipo                | Atributos     |
-|----------------|---------------------|---------------|
-| id             | INT                 | PK, AI        |
-| nome           | VARCHAR(100)        | NOT NULL      |
-| categoria      | VARCHAR(50)         | ex: calcinha, sutiã |
-| cor            | VARCHAR(50)         |               |
-| tamanho        | VARCHAR(10)         | P, M, G, GG   |
-| preco_custo    | DECIMAL(10,2)       |               |
-| preco_venda    | DECIMAL(10,2)       |               |
-| estoque_minimo | INT                 | DEFAULT 0     |
-| ativo          | TINYINT(1)          | DEFAULT 1     |
-| criado_em      | DATETIME            | DEFAULT NOW() |
 
 #### `estoque` ⏳
 | Campo      | Tipo     | Atributos                  |
 |------------|----------|----------------------------|
 | id         | INT      | PK, AI                     |
 | produto_id | INT      | FK → produtos.id           |
-| tipo       | ENUM     | 'entrada' ou 'saida'       |
+| tipo       | ENUM     | entrada ou saida           |
 | quantidade | INT      |                            |
-| motivo     | VARCHAR  | ex: compra, venda, ajuste  |
+| motivo     | VARCHAR  | compra, venda, ajuste      |
 | criado_em  | DATETIME | DEFAULT NOW()              |
-
-#### `clientes` ⏳
-| Campo       | Tipo         | Atributos        |
-|-------------|--------------|------------------|
-| id          | INT          | PK, AI           |
-| nome        | VARCHAR(150) | NOT NULL         |
-| telefone    | VARCHAR(20)  |                  |
-| email       | VARCHAR(150) |                  |
-| endereco    | TEXT         |                  |
-| observacoes | TEXT         |                  |
-| ativo       | TINYINT(1)   | DEFAULT 1        |
-| criado_em   | DATETIME     | DEFAULT NOW()    |
 
 #### `pedidos` ⏳
 | Campo            | Tipo     | Atributos                       |
@@ -364,7 +355,7 @@ Frontend/
 | Campo      | Tipo     | Atributos                    |
 |------------|----------|------------------------------|
 | id         | INT      | PK, AI                       |
-| tipo       | ENUM     | 'receita' ou 'despesa'       |
+| tipo       | ENUM     | receita ou despesa           |
 | descricao  | VARCHAR  |                              |
 | categoria  | VARCHAR  | venda, matéria-prima, etc    |
 | valor      | DECIMAL  |                              |
@@ -402,17 +393,10 @@ npm run dev
 ```bash
 cd Frontend
 
-# Instalar dependências
+# Instalar dependências base
 npm install
 
-# Definir variáveis de ambiente
-cp .env.example .env
-# editar .env com URL da API backend
-
-# Iniciar dev server
-npm run dev
-
-# Será executado em: http://localhost:5173 (porta padrão Vite)
+# Ainda não existe app executável, Vite ou arquivo .env no frontend
 ```
 
 ---
@@ -421,10 +405,10 @@ npm run dev
 
 ### 7.1 Nomes de Arquivo
 
-- **Controllers:** `nomeController.js` (ex: `produtosController.js`)
-- **Services:** `nomeService.js` (ex: `produtosService.js`)
-- **Repositories:** `nomeRepository.js` (ex: `produtosRepository.js`)
-- **Routes:** `nome.js` (ex: `produtos.js`)
+- **Controllers:** `nome.controller.js` (ex: `produtos.controller.js`)
+- **Services:** `nome.service.js` (ex: `produtos.service.js`)
+- **Repositories:** `nome.repository.js` (ex: `produtos.repository.js`)
+- **Routes:** `nome.routes.js` (ex: `produtos.routes.js`)
 
 ### 7.2 Nomes de Função
 
@@ -436,8 +420,8 @@ npm run dev
 **Sucesso (2xx):**
 ```json
 {
-  "data": { ... },
-  "message": "Descrição do sucesso"
+    "message": "Descrição do sucesso",
+    "cliente": { ... }
 }
 ```
 
@@ -461,6 +445,14 @@ app.post('/endpoint', { schema: { body: {...} } }, handler)
 
 ## 8. Regras de Negócio
 
+### 8.1 Regras já cobertas no código
+
+- Autenticação com registro, login, logout e consulta do usuário autenticado
+- Produtos com CRUD e inativação lógica (`ativo = 0`)
+- Clientes com CRUD e inativação lógica (`ativo = 0`)
+
+### 8.2 Regras planejadas
+
 (Vide arquivo `requisitos.md` para detalhes completos)
 
 **RN01** — Um pedido só pode ser criado para cliente ativo  
@@ -478,9 +470,9 @@ app.post('/endpoint', { schema: { body: {...} } }, handler)
 | Fase | Módulo      | Estimativa | Status   |
 |------|-------------|------------|----------|
 | 1    | Auth        | ✅ Completo | ✅ Done  |
-| 2    | Produtos    | ~5 dias    | ⏳ To-do |
+| 2    | Produtos    | ✅ Completo | ✅ Done  |
 | 3    | Estoque     | ~5 dias    | ⏳ To-do |
-| 4    | Clientes    | ~3 dias    | ⏳ To-do |
+| 4    | Clientes    | ✅ Completo | ✅ Done  |
 | 5    | Pedidos     | ~8 dias    | ⏳ To-do |
 | 6    | Produção    | ~5 dias    | ⏳ To-do |
 | 7    | Financeiro  | ~5 dias    | ⏳ To-do |

@@ -1,4 +1,4 @@
-import { register, login, logout, me } from '../controllers/authController.js'
+import { register, login, logout, me } from './auth.controller.js'
 
 export async function authRoutes(app) {
   const registerSchema = {

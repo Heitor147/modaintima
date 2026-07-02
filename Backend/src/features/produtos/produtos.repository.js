@@ -1,4 +1,4 @@
-import db from '../db/connection.js'
+import db from '../../db/connection.js'
 
 const BAD_FIELD_ERROR = 'ER_BAD_FIELD_ERROR'
 

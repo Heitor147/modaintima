@@ -1,17 +1,17 @@
-import * as clientesService from '../services/clientesService.js'
+import * as produtosService from './produtos.service.js'
 
 export const listar = async (req, reply) => {
   try {
-    const clientes = await clientesService.listar()
+    const produtos = await produtosService.listar()
 
-    if (clientes.length === 0) {
+    if (produtos.length === 0) {
       return reply.code(200).send({
-        message: 'Não há clientes cadastrados ainda!',
-        clientes: [],
+        message: 'Não há produtos cadastrados ainda!',
+        produtos: [],
       })
     }
 
-    return reply.code(200).send({ clientes })
+    return reply.code(200).send({ produtos })
   } catch (err) {
     req.log.error(err)
     return reply.code(500).send({
@@ -23,9 +23,9 @@ export const listar = async (req, reply) => {
 
 export const buscarPorId = async (req, reply) => {
   try {
-    const cliente = await clientesService.buscarPorId(req.params.id)
+    const produto = await produtosService.buscarPorId(req.params.id)
 
-    return reply.code(200).send({ cliente })
+    return reply.code(200).send({ produto })
   } catch (err) {
     req.log.error(err)
     if (err.statusCode === 400) {
@@ -51,11 +51,11 @@ export const buscarPorId = async (req, reply) => {
 
 export const criar = async (req, reply) => {
   try {
-    const cliente = await clientesService.criar(req.body)
+    const produto = await produtosService.criar(req.body)
 
     return reply.code(201).send({
-      message: 'Cliente criado com sucesso',
-      cliente,
+      message: 'Produto criado com sucesso',
+      produto,
     })
   } catch (err) {
     req.log.error(err)
@@ -75,11 +75,11 @@ export const criar = async (req, reply) => {
 
 export const atualizar = async (req, reply) => {
   try {
-    const cliente = await clientesService.atualizar(req.params.id, req.body)
+    const produto = await produtosService.atualizar(req.params.id, req.body)
 
     return reply.code(200).send({
-      message: 'Cliente atualizado com sucesso',
-      cliente,
+      message: 'Produto atualizado com sucesso',
+      produto,
     })
   } catch (err) {
     req.log.error(err)
@@ -104,9 +104,9 @@ export const atualizar = async (req, reply) => {
   }
 }
 
-export const inativar = async (req, reply) => {
+export const remover = async (req, reply) => {
   try {
-    const result = await clientesService.inativar(req.params.id)
+    const result = await produtosService.remover(req.params.id)
 
     return reply.code(200).send({
       message: result.message,

@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs'
-import * as usuariosRepository from '../repositories/usuariosRepository.js'
+import * as authRepository from './auth.repository.js'
 
 export const login = async (email, password) => {
-  const user = await usuariosRepository.findByEmail(email)
+  const user = await authRepository.findByEmail(email)
 
   if (!user || user.ativo === 0) {
     throw new Error('Credenciais inválidas')
@@ -23,7 +23,7 @@ export const login = async (email, password) => {
 }
 
 export const register = async (email, nome, password) => {
-  const emailAlreadyExists = await usuariosRepository.emailExists(email)
+  const emailAlreadyExists = await authRepository.emailExists(email)
 
   if (emailAlreadyExists) {
     throw new Error('Email já cadastrado')
@@ -35,7 +35,7 @@ export const register = async (email, nome, password) => {
 
   const senhaHash = await bcrypt.hash(password, 10)
 
-  const userId = await usuariosRepository.create({
+  const userId = await authRepository.create({
     email,
     nome,
     senhaHash,
@@ -56,7 +56,7 @@ export const logout = async () => {
 }
 
 export const getUserById = async (userId) => {
-  const user = await usuariosRepository.findById(userId)
+  const user = await authRepository.findById(userId)
 
   if (!user) {
     throw new Error('Usuário não encontrado')

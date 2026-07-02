@@ -1,5 +1,5 @@
-import * as authService from '../services/authService.js'
-import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '../middlewares/auth.js'
+import * as authService from './auth.service.js'
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_OPTIONS } from '../../middlewares/auth.js'
 
 const invalidCredentialsMessage = 'Credenciais inválidas'
 

@@ -4,7 +4,7 @@ import {
   criar,
   listar,
   remover,
-} from '../controllers/produtosController.js'
+} from './produtos.controller.js'
 
 export async function produtosRoutes(app) {
   app.get('/produtos', listar)
