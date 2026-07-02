@@ -8,7 +8,7 @@ import { authRoutes } from './features/auth/auth.routes.js'
 import { clientesRoutes } from './features/clientes/clientes.routes.js'
 import { produtosRoutes } from './features/produtos/produtos.routes.js'
 import { getEnv } from './config/env.js'
-import { authenticate, AUTH_COOKIE_NAME } from './middlewares/auth.js'
+import { authenticate, AUTH_COOKIE_NAME } from './core/middlewares/auth.js'
 import crypto from 'crypto'
 
 const env = getEnv()
